@@ -22,21 +22,40 @@ dayjs.extend(customParseFormat);
 const DEFAULT_TIMEZONE = process.env.TZ || 'Asia/Shanghai';
 dayjs.tz.setDefault(DEFAULT_TIMEZONE);
 
+// 默认日期时间格式
+const DEFAULT_FORMAT = 'YYYY-MM-DD HH:mm:ss';
+const DEFAULT_DATE_FORMAT = 'YYYY-MM-DD';
+const DEFAULT_TIME_FORMAT = 'HH:mm:ss';
+
 /**
  * 时间工具类
  */
 export class DateTime {
   /**
-   * 获取当前时间的ISO字符串
+   * 获取当前时间的格式化字符串 (YYYY-MM-DD HH:mm:ss)
    */
   static now(): string {
+    return dayjs().format(DEFAULT_FORMAT);
+  }
+
+  /**
+   * 获取当前时间的ISO字符串
+   */
+  static nowISO(): string {
     return dayjs().toISOString();
+  }
+
+  /**
+   * 获取当前UTC时间的格式化字符串
+   */
+  static utcNow(): string {
+    return dayjs.utc().format(DEFAULT_FORMAT);
   }
 
   /**
    * 获取当前UTC时间的ISO字符串
    */
-  static utcNow(): string {
+  static utcNowISO(): string {
     return dayjs.utc().toISOString();
   }
 
@@ -57,7 +76,7 @@ export class DateTime {
   /**
    * 格式化时间
    */
-  static format(date?: dayjs.ConfigType, format: string = 'YYYY-MM-DD HH:mm:ss'): string {
+  static format(date?: dayjs.ConfigType, format: string = DEFAULT_FORMAT): string {
     return dayjs(date).format(format);
   }
 
@@ -66,6 +85,27 @@ export class DateTime {
    */
   static toISOString(date?: dayjs.ConfigType): string {
     return dayjs(date).toISOString();
+  }
+
+  /**
+   * 格式化为标准格式字符串 (YYYY-MM-DD HH:mm:ss)
+   */
+  static toStandardString(date?: dayjs.ConfigType): string {
+    return dayjs(date).format(DEFAULT_FORMAT);
+  }
+
+  /**
+   * 格式化为日期字符串 (YYYY-MM-DD)
+   */
+  static toDateString(date?: dayjs.ConfigType): string {
+    return dayjs(date).format(DEFAULT_DATE_FORMAT);
+  }
+
+  /**
+   * 格式化为时间字符串 (HH:mm:ss)
+   */
+  static toTimeString(date?: dayjs.ConfigType): string {
+    return dayjs(date).format(DEFAULT_TIME_FORMAT);
   }
 
   /**
@@ -89,14 +129,14 @@ export class DateTime {
    * 时间加法
    */
   static add(date: dayjs.ConfigType, amount: number, unit: dayjs.ManipulateType): string {
-    return dayjs(date).add(amount, unit).toISOString();
+    return dayjs(date).add(amount, unit).format(DEFAULT_FORMAT);
   }
 
   /**
    * 时间减法
    */
   static subtract(date: dayjs.ConfigType, amount: number, unit: dayjs.ManipulateType): string {
-    return dayjs(date).subtract(amount, unit).toISOString();
+    return dayjs(date).subtract(amount, unit).format(DEFAULT_FORMAT);
   }
 
   /**
@@ -163,8 +203,8 @@ export class DateTime {
     }
 
     return {
-      start: start.toISOString(),
-      end: now.toISOString()
+      start: start.format(DEFAULT_FORMAT),
+      end: now.format(DEFAULT_FORMAT)
     };
   }
 
@@ -174,8 +214,8 @@ export class DateTime {
   static getToday(): { start: string; end: string } {
     const today = dayjs();
     return {
-      start: today.startOf('day').toISOString(),
-      end: today.endOf('day').toISOString()
+      start: today.startOf('day').format(DEFAULT_FORMAT),
+      end: today.endOf('day').format(DEFAULT_FORMAT)
     };
   }
 
@@ -185,8 +225,8 @@ export class DateTime {
   static getThisWeek(): { start: string; end: string } {
     const now = dayjs();
     return {
-      start: now.startOf('week').toISOString(),
-      end: now.endOf('week').toISOString()
+      start: now.startOf('week').format(DEFAULT_FORMAT),
+      end: now.endOf('week').format(DEFAULT_FORMAT)
     };
   }
 
@@ -196,8 +236,8 @@ export class DateTime {
   static getThisMonth(): { start: string; end: string } {
     const now = dayjs();
     return {
-      start: now.startOf('month').toISOString(),
-      end: now.endOf('month').toISOString()
+      start: now.startOf('month').format(DEFAULT_FORMAT),
+      end: now.endOf('month').format(DEFAULT_FORMAT)
     };
   }
 

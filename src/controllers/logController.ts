@@ -3,6 +3,9 @@ import { insertLog, queryLogs, getLogStats } from '../config/database';
 import { LogData, LogQueryOptions, ApiResponse } from '../types';
 import { asyncHandler } from '../types/controller';
 import DateTime from '../utils/datetime';
+import { ResponseFormatter } from '../utils/responseFormatter';
+import { LogCache } from '../utils/logCache';
+import { DatabaseHealth } from '../utils/databaseHealth';
 
 /**
  * 查询日志列表
@@ -25,9 +28,10 @@ export const getLogs = asyncHandler(async (req: Request, res: Response): Promise
   
   const response: ApiResponse<LogData[]> = {
     success: true,
-    data: logs,
+    data: ResponseFormatter.formatLogList(logs),
     count: logs.length,
-    environment: NODE_ENV
+    environment: NODE_ENV,
+    timestamp: DateTime.now()
   };
   
   res.json(response);
@@ -51,14 +55,14 @@ export const createLog = asyncHandler(async (req: Request, res: Response): Promi
   }
   
   // 验证时间戳格式（如果提供）
-  let timestamp = DateTime.now();
+  let timestamp = DateTime.nowISO(); // 数据库存储使用ISO格式
   if (body.timestamp) {
     if (DateTime.isValid(body.timestamp)) {
       timestamp = DateTime.toISOString(body.timestamp);
     } else {
       const response: ApiResponse = {
         success: false,
-        error: '时间戳格式无效'
+        error: '时间戳格式无效，支持格式: YYYY-MM-DD HH:mm:ss 或 ISO 8601'
       };
       res.status(400).json(response);
       return;
@@ -85,21 +89,177 @@ export const createLog = asyncHandler(async (req: Request, res: Response): Promi
     timestamp: timestamp
   };
   
-  // 插入日志
-  await insertLog(logData);
+  // 检查数据库健康状态并决定写入策略
+  const databaseHealth = DatabaseHealth.getInstance();
+  const logCache = LogCache.getInstance();
   
-  if (NODE_ENV === 'development') {
-    console.log('✅ 日志已存储:', logData);
+  // 主动检查数据库健康状态
+  if (!databaseHealth.getHealthStatus().isHealthy) {
+    // 数据库不健康，直接缓存
+    console.log('⚠️ 数据库不健康，直接缓存日志');
+    
+    try {
+      await logCache.addToCache(logData);
+      
+      const cacheInfo = await logCache.getCacheInfo();
+      
+      const response: ApiResponse = {
+        success: true,
+        message: '数据库暂时不可用，日志已缓存到本地',
+        data: {
+          cached: true,
+          totalCached: cacheInfo.count
+        },
+        timestamp: DateTime.now()
+      };
+      
+      res.json(response);
+      return;
+    } catch (cacheError) {
+      console.error('❌ 缓存日志失败:', cacheError);
+      
+      const response: ApiResponse = {
+        success: false,
+        error: '日志存储失败，数据库和缓存都不可用',
+        timestamp: DateTime.now()
+      };
+      
+      res.status(500).json(response);
+      return;
+    }
   }
+  
+  // 数据库健康，尝试直接写入
+  try {
+    await insertLog(logData);
+    
+    if (NODE_ENV === 'development') {
+      console.log('✅ 日志已存储:', logData);
+    }
+    
+    const response: ApiResponse = {
+      success: true,
+      message: '日志已成功存储',
+      timestamp: DateTime.now()
+    };
+    
+    res.json(response);
+  } catch (error) {
+    // 数据库插入失败，尝试缓存
+    console.warn('⚠️ 数据库写入失败，转为缓存模式:', error);
+    
+    try {
+      await logCache.addToCache(logData);
+      
+      const cacheInfo = await logCache.getCacheInfo();
+      
+      const response: ApiResponse = {
+        success: true,
+        message: '数据库暂时不可用，日志已缓存到本地',
+        data: {
+          cached: true,
+          totalCached: cacheInfo.count
+        },
+        timestamp: DateTime.now()
+      };
+      
+      res.json(response);
+    } catch (cacheError) {
+      // 缓存也失败了
+      console.error('❌ 缓存日志也失败:', cacheError);
+      
+      const response: ApiResponse = {
+        success: false,
+        error: '日志存储失败，数据库和缓存都不可用',
+        timestamp: DateTime.now()
+      };
+      
+      res.status(500).json(response);
+         }
+   }
+});
+
+/**
+ * 获取缓存状态信息
+ */
+export const getCacheStatus = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const logCache = LogCache.getInstance();
+  const databaseHealth = DatabaseHealth.getInstance();
+  
+  const cacheInfo = await logCache.getCacheInfo();
+  const healthStatus = databaseHealth.getHealthStatus();
   
   const response: ApiResponse = {
     success: true,
-    message: '日志已成功存储',
+    data: {
+      cache: cacheInfo,
+      database: healthStatus,
+      timestamp: DateTime.now()
+    }
+  };
+  
+  res.json(response);
+});
+
+/**
+ * 手动触发缓存处理
+ */
+export const processCachedLogs = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const databaseHealth = DatabaseHealth.getInstance();
+  
+  const result = await databaseHealth.triggerCacheProcessing();
+  
+  const response: ApiResponse = {
+    success: result.success,
+    message: result.message,
+    data: {
+      processed: result.processed,
+      failed: result.failed,
+      errors: result.errors
+    },
+    timestamp: DateTime.now()
+  };
+  
+  if (result.success) {
+    res.json(response);
+  } else {
+    res.status(500).json(response);
+  }
+});
+
+/**
+ * 清空缓存
+ */
+export const clearCache = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const logCache = LogCache.getInstance();
+  
+  await logCache.clearCache();
+  
+  const response: ApiResponse = {
+    success: true,
+    message: '缓存已清空',
     timestamp: DateTime.now()
   };
   
   res.json(response);
 });
+
+/**
+ * 获取详细的系统健康报告
+ */
+export const getSystemHealthReport = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const databaseHealth = DatabaseHealth.getInstance();
+  
+  const report = await databaseHealth.getDetailedHealthReport();
+  
+  const response: ApiResponse = {
+    success: true,
+    data: report,
+    timestamp: DateTime.now()
+  };
+  
+  res.json(response);
+}); 
 
 /**
  * 获取日志统计信息
@@ -122,8 +282,9 @@ export const getLogStatistics = asyncHandler(async (req: Request, res: Response)
   
   const response: ApiResponse = {
     success: true,
-    data: stats,
-    timeRange: timeRange as string
+    data: ResponseFormatter.formatLogStats(stats),
+    timeRange: timeRange as string,
+    timestamp: DateTime.now()
   };
   
   res.json(response);
@@ -158,7 +319,7 @@ export const createLogsBatch = asyncHandler(async (req: Request, res: Response):
   // 处理每条日志
   const processedLogs: LogData[] = logs.map((logItem: any) => {
     // 验证时间戳
-    let timestamp = DateTime.now();
+    let timestamp = DateTime.nowISO(); // 数据库存储使用ISO格式
     if (logItem.timestamp && DateTime.isValid(logItem.timestamp)) {
       timestamp = DateTime.toISOString(logItem.timestamp);
     }
@@ -183,22 +344,99 @@ export const createLogsBatch = asyncHandler(async (req: Request, res: Response):
     };
   });
   
-  // 批量插入日志
-  const insertPromises = processedLogs.map(logData => insertLog(logData));
-  await Promise.all(insertPromises);
+  // 检查数据库健康状态并决定写入策略
+  const databaseHealth = DatabaseHealth.getInstance();
+  const logCache = LogCache.getInstance();
   
-  if (NODE_ENV === 'development') {
-    console.log(`✅ 批量插入${processedLogs.length}条日志成功`);
+  // 主动检查数据库健康状态
+  if (!databaseHealth.getHealthStatus().isHealthy) {
+    // 数据库不健康，直接缓存
+    console.log(`⚠️ 数据库不健康，直接缓存 ${processedLogs.length} 条日志`);
+    
+    try {
+      await logCache.addToCache(processedLogs);
+      
+      const cacheInfo = await logCache.getCacheInfo();
+      
+      const response: ApiResponse = {
+        success: true,
+        message: `数据库暂时不可用，已缓存${processedLogs.length}条日志到本地`,
+        data: {
+          count: processedLogs.length,
+          cached: true,
+          totalCached: cacheInfo.count
+        },
+        timestamp: DateTime.now()
+      };
+      
+      res.json(response);
+      return;
+    } catch (cacheError) {
+      console.error('❌ 批量缓存日志失败:', cacheError);
+      
+      const response: ApiResponse = {
+        success: false,
+        error: '批量日志存储失败，数据库和缓存都不可用',
+        timestamp: DateTime.now()
+      };
+      
+      res.status(500).json(response);
+      return;
+    }
   }
   
-  const response: ApiResponse = {
-    success: true,
-    message: `成功存储${processedLogs.length}条日志`,
-    data: {
-      count: processedLogs.length
-    },
-    timestamp: DateTime.now()
-  };
-  
-  res.json(response);
+  // 数据库健康，尝试批量写入
+  try {
+    const insertPromises = processedLogs.map(logData => insertLog(logData));
+    await Promise.all(insertPromises);
+    
+    if (NODE_ENV === 'development') {
+      console.log(`✅ 批量插入${processedLogs.length}条日志成功`);
+    }
+    
+    const response: ApiResponse = {
+      success: true,
+      message: `成功存储${processedLogs.length}条日志`,
+      data: {
+        count: processedLogs.length,
+        cached: false
+      },
+      timestamp: DateTime.now()
+    };
+    
+    res.json(response);
+  } catch (error) {
+    // 批量插入失败，尝试缓存
+    console.warn('⚠️ 批量数据库写入失败，转为缓存模式:', error);
+    
+    try {
+      await logCache.addToCache(processedLogs);
+      
+      const cacheInfo = await logCache.getCacheInfo();
+      
+      const response: ApiResponse = {
+        success: true,
+        message: `数据库暂时不可用，已缓存${processedLogs.length}条日志到本地`,
+        data: {
+          count: processedLogs.length,
+          cached: true,
+          totalCached: cacheInfo.count
+        },
+        timestamp: DateTime.now()
+      };
+      
+      res.json(response);
+    } catch (cacheError) {
+      // 缓存也失败了
+      console.error('❌ 批量缓存日志也失败:', cacheError);
+      
+      const response: ApiResponse = {
+        success: false,
+        error: '批量日志存储失败，数据库和缓存都不可用',
+        timestamp: DateTime.now()
+      };
+      
+      res.status(500).json(response);
+    }
+  }
 }); 

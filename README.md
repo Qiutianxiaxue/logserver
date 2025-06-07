@@ -23,6 +23,9 @@
 - ✅ Day.js 时间处理库集成
 - ✅ 时间验证中间件
 - ✅ 多时区支持
+- ✅ 本地日志缓存机制
+- ✅ 数据库健康检查和自动恢复
+- ✅ 数据库断线时本地缓存保障
 
 ## 快速开始
 
@@ -94,14 +97,24 @@ npm run clean
     - `offset` - 偏移量（默认0）
     - `level` - 日志级别过滤
     - `service` - 服务名过滤
-    - `startTime` - 开始时间
-    - `endTime` - 结束时间
+    - `startTime` - 开始时间（格式: 2025-12-11 10:00:00）
+    - `endTime` - 结束时间（格式: 2025-12-11 18:30:00）
     - `keyword` - 关键词搜索
 - `POST /api/logs` - 提交单条日志数据
 - `POST /api/logs/batch` - 批量提交日志数据
 - `GET /api/logs/stats` - 获取日志统计信息
   - 查询参数：
-    - `timeRange` - 时间范围（24h/7d/30d）
+    - `timeRange` - 时间范围（1h/24h/7d/30d/90d）
+
+### 缓存管理接口
+
+- `GET /api/logs/cache/status` - 获取缓存状态信息
+- `POST /api/logs/cache/process` - 手动触发缓存处理
+- `DELETE /api/logs/cache/clear` - 清空缓存
+
+### 系统监控接口
+
+- `GET /api/logs/system/health` - 获取详细的系统健康报告
 
 ## 项目结构
 
@@ -138,6 +151,31 @@ logserver/
 └── README.md                   # 项目说明
 ```
 
+## 缓存机制说明
+
+### 本地日志缓存
+
+当数据库连接不可用时，系统会自动将日志缓存到本地文件：
+
+- **缓存位置**: `./cache/logs_cache.json`
+- **最大缓存**: 10,000 条日志记录
+- **最大文件大小**: 50MB
+- **自动恢复**: 数据库恢复后自动写入缓存的日志
+
+### 数据库健康检查
+
+- **检查间隔**: 30秒
+- **自动重试**: 最多5次
+- **状态监控**: 实时监控数据库连接状态
+- **故障转移**: 数据库不可用时自动切换到缓存模式
+
+### 缓存管理
+
+- **状态查询**: 查看缓存数量、文件大小、最新/最旧缓存时间
+- **手动处理**: 支持手动触发缓存日志写入数据库
+- **清空缓存**: 支持手动清空缓存文件
+- **备份机制**: 处理缓存前自动备份
+
 ## 开发说明
 
 项目使用 nodemon 实现热加载，当您修改代码文件时，服务器会自动重启。
@@ -155,6 +193,7 @@ logserver/
 - `LOG_LEVEL` - 日志级别（默认：combined）
 - `JSON_LIMIT` - JSON请求体大小限制（默认：10mb）
 - `URL_LIMIT` - URL编码请求体大小限制（默认：10mb）
+- `TZ` - 服务器时区（默认：Asia/Shanghai）
 
 ### ClickHouse数据库配置
 - `CLICKHOUSE_HOST` - ClickHouse服务地址（默认：http://localhost:8123）
@@ -244,11 +283,20 @@ curl "http://localhost:3000/api/logs?keyword=登录"
 
 ### 获取统计信息
 ```bash
+# 1小时统计
+curl "http://localhost:3000/api/logs/stats?timeRange=1h"
+
 # 24小时统计
 curl "http://localhost:3000/api/logs/stats?timeRange=24h"
 
 # 7天统计
 curl "http://localhost:3000/api/logs/stats?timeRange=7d"
+
+# 30天统计
+curl "http://localhost:3000/api/logs/stats?timeRange=30d"
+
+# 90天统计
+curl "http://localhost:3000/api/logs/stats?timeRange=90d"
 ```
 
 ## 架构说明
@@ -257,6 +305,8 @@ curl "http://localhost:3000/api/logs/stats?timeRange=7d"
 
 - **Controllers（控制器层）**: 处理HTTP请求和响应逻辑
 - **Routes（路由层）**: 定义API端点和路由规则
+- **Middleware（中间件层）**: 请求预处理和验证逻辑
+- **Utils（工具层）**: 公共工具类和辅助函数
 - **Config（配置层）**: 数据库配置和连接管理
 - **Types（类型层）**: TypeScript类型定义和接口
 
@@ -268,6 +318,8 @@ curl "http://localhost:3000/api/logs/stats?timeRange=7d"
 - [x] 环境变量配置支持
 - [x] MVC架构重构
 - [x] 支持批量日志提交
+- [x] Day.js时间处理集成
+- [x] 时间验证中间件
 - [ ] 添加用户认证中间件
 - [ ] 集成日志可视化面板
 - [ ] 添加日志告警功能

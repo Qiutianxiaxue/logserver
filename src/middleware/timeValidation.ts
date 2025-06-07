@@ -44,7 +44,7 @@ export const validateDateTime = (req: Request, res: Response, next: NextFunction
       error: '开始时间格式无效',
       data: {
         received: startTime,
-        expectedFormat: 'ISO 8601 格式，如: 2023-12-01T10:00:00Z'
+        expectedFormat: 'YYYY-MM-DD HH:mm:ss 或 ISO 8601 格式，如: 2025-12-11 10:00:00 或 2025-12-11T10:00:00Z'
       }
     };
     res.status(400).json(response);
@@ -58,7 +58,7 @@ export const validateDateTime = (req: Request, res: Response, next: NextFunction
       error: '结束时间格式无效',
       data: {
         received: endTime,
-        expectedFormat: 'ISO 8601 格式，如: 2023-12-01T10:00:00Z'
+        expectedFormat: 'YYYY-MM-DD HH:mm:ss 或 ISO 8601 格式，如: 2025-12-11 10:00:00 或 2025-12-11T10:00:00Z'
       }
     };
     res.status(400).json(response);
@@ -93,9 +93,9 @@ export const validateDateTime = (req: Request, res: Response, next: NextFunction
 export const addRequestTimestamp = (req: Request, res: Response, next: NextFunction): void => {
   // 在请求对象上添加时间戳信息
   (req as any).requestTime = {
-    iso: DateTime.now(),
+    iso: DateTime.nowISO(),
     unix: DateTime.unixTimestamp(),
-    formatted: DateTime.format()
+    formatted: DateTime.now()
   };
   
   next();

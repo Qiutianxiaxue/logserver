@@ -29,7 +29,7 @@ let clickhouseClient: ClickHouseClient | null = null;
 /**
  * 初始化ClickHouse连接
  */
-export const initClickHouse = async (): Promise<ClickHouseClient> => {
+export const initClickHouse = async (): Promise<ClickHouseClient | null> => {
   try {
     clickhouseClient = createClient(clickhouseConfig);
     
@@ -47,8 +47,40 @@ export const initClickHouse = async (): Promise<ClickHouseClient> => {
     
     return clickhouseClient;
   } catch (error) {
-    console.error('❌ ClickHouse连接失败:', (error as Error).message);
-    throw error;
+    console.error('❌ ClickHouse初始连接失败:', (error as Error).message);
+    console.warn('⚠️ 服务将在离线模式下启动，健康检查服务会持续尝试重连');
+    
+    // 重置客户端为null，让健康检查服务处理重连
+    clickhouseClient = null;
+    return null;
+  }
+};
+
+/**
+ * 尝试重新连接数据库（用于健康检查服务）
+ */
+export const reconnectClickHouse = async (): Promise<boolean> => {
+  try {
+    if (!clickhouseClient) {
+      clickhouseClient = createClient(clickhouseConfig);
+    }
+    
+    // 测试连接
+    await clickhouseClient.ping();
+    console.log('✅ ClickHouse重连成功');
+    
+    // 确保数据库和表存在
+    await clickhouseClient.command({
+      query: `CREATE DATABASE IF NOT EXISTS ${clickhouseConfig.database}`,
+    });
+    
+    await createLogTable();
+    
+    return true;
+  } catch (error) {
+    console.error('❌ ClickHouse重连失败:', (error as Error).message);
+    clickhouseClient = null;
+    return false;
   }
 };
 
@@ -237,4 +269,99 @@ export const closeConnection = async (): Promise<void> => {
  */
 export const getClient = (): ClickHouseClient | null => {
   return clickhouseClient;
+};
+
+/**
+ * 数据库实例对象（用于健康检查和其他操作）
+ */
+export const database = {
+  /**
+   * 检查数据库连接
+   */
+  async ping(): Promise<{ success: boolean }> {
+    if (!clickhouseClient) {
+      throw new Error('ClickHouse客户端未初始化');
+    }
+    
+    await clickhouseClient.ping();
+    return { success: true };
+  },
+
+  /**
+   * 真实的数据库连接和权限检查
+   */
+  async healthCheck(): Promise<{ 
+    success: boolean; 
+    details: {
+      serverPing: boolean;
+      databaseAccess: boolean;
+      tableAccess: boolean;
+      error?: string;
+    }
+  }> {
+    if (!clickhouseClient) {
+      throw new Error('ClickHouse客户端未初始化');
+    }
+
+    const details = {
+      serverPing: false,
+      databaseAccess: false,
+      tableAccess: false,
+      error: undefined as string | undefined
+    };
+
+    try {
+      // 1. 检查服务器连接
+      await clickhouseClient.ping();
+      details.serverPing = true;
+      console.log('✅ 服务器 ping 成功');
+
+      // 2. 检查数据库访问权限
+      await clickhouseClient.query({
+        query: `SELECT 1 FROM system.databases WHERE name = '${clickhouseConfig.database}'`,
+        format: 'JSONEachRow'
+      });
+      details.databaseAccess = true;
+      console.log('✅ 数据库访问成功');
+
+      // 3. 检查日志表是否存在和可访问
+      const tableCheckResult = await clickhouseClient.query({
+        query: `SELECT COUNT(*) as count FROM ${clickhouseConfig.database}.application_logs LIMIT 1`,
+        format: 'JSONEachRow'
+      });
+      
+      // 尝试读取结果以确保查询真的执行成功了
+      await tableCheckResult.json();
+      details.tableAccess = true;
+      console.log('✅ 日志表访问成功');
+
+      return {
+        success: true,
+        details
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      details.error = errorMessage;
+      console.error('❌ 数据库健康检查失败:', errorMessage);
+      
+      return {
+        success: false,
+        details
+      };
+    }
+  },
+
+  /**
+   * 获取客户端实例
+   */
+  getClient(): ClickHouseClient | null {
+    return clickhouseClient;
+  },
+
+  /**
+   * 检查客户端是否已初始化
+   */
+  isInitialized(): boolean {
+    return clickhouseClient !== null;
+  }
 }; 
