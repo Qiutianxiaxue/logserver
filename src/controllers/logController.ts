@@ -12,7 +12,7 @@ import { DatabaseHealth } from '../utils/databaseHealth';
  */
 export const getLogs = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const NODE_ENV = process.env.NODE_ENV || 'development';
-  const queryParams = req.query;
+  const queryParams = req.body;
   
   const options: LogQueryOptions = {
     limit: queryParams.limit ? parseInt(queryParams.limit as string) : 100,
@@ -26,12 +26,20 @@ export const getLogs = asyncHandler(async (req: Request, res: Response): Promise
   
   const logs = await queryLogs(options);
   
-  const response: ApiResponse<LogData[]> = {
-    success: true,
-    data: ResponseFormatter.formatLogList(logs),
-    count: logs.length,
-    environment: NODE_ENV,
-    timestamp: DateTime.now()
+  const response: ApiResponse<{
+    logs: LogData[];
+    count: number;
+    environment: string;
+    timestamp: string;
+  }> = {
+    code: 1,
+    message: `成功获取${logs.length}条日志记录`,
+    data: {
+      logs: ResponseFormatter.formatLogList(logs),
+      count: logs.length,
+      environment: NODE_ENV,
+      timestamp: DateTime.now()
+    }
   };
   
   res.json(response);
@@ -47,8 +55,8 @@ export const createLog = asyncHandler(async (req: Request, res: Response): Promi
   // 数据验证
   if (!body.message) {
     const response: ApiResponse = {
-      success: false,
-      error: '日志消息不能为空'
+      code: 0,
+      message: '日志消息不能为空'
     };
     res.status(400).json(response);
     return;
@@ -61,8 +69,8 @@ export const createLog = asyncHandler(async (req: Request, res: Response): Promi
       timestamp = DateTime.toISOString(body.timestamp);
     } else {
       const response: ApiResponse = {
-        success: false,
-        error: '时间戳格式无效，支持格式: YYYY-MM-DD HH:mm:ss 或 ISO 8601'
+        code: 0,
+        message: '时间戳格式无效，支持格式: YYYY-MM-DD HH:mm:ss 或 ISO 8601'
       };
       res.status(400).json(response);
       return;
@@ -104,13 +112,13 @@ export const createLog = asyncHandler(async (req: Request, res: Response): Promi
       const cacheInfo = await logCache.getCacheInfo();
       
       const response: ApiResponse = {
-        success: true,
+        code: 1,
         message: '数据库暂时不可用，日志已缓存到本地',
         data: {
           cached: true,
-          totalCached: cacheInfo.count
-        },
-        timestamp: DateTime.now()
+          totalCached: cacheInfo.count,
+          timestamp: DateTime.now()
+        }
       };
       
       res.json(response);
@@ -119,9 +127,8 @@ export const createLog = asyncHandler(async (req: Request, res: Response): Promi
       console.error('❌ 缓存日志失败:', cacheError);
       
       const response: ApiResponse = {
-        success: false,
-        error: '日志存储失败，数据库和缓存都不可用',
-        timestamp: DateTime.now()
+        code: 0,
+        message: '日志存储失败，数据库和缓存都不可用'
       };
       
       res.status(500).json(response);
@@ -138,9 +145,11 @@ export const createLog = asyncHandler(async (req: Request, res: Response): Promi
     }
     
     const response: ApiResponse = {
-      success: true,
+      code: 1,
       message: '日志已成功存储',
-      timestamp: DateTime.now()
+      data: {
+        timestamp: DateTime.now()
+      }
     };
     
     res.json(response);
@@ -154,13 +163,13 @@ export const createLog = asyncHandler(async (req: Request, res: Response): Promi
       const cacheInfo = await logCache.getCacheInfo();
       
       const response: ApiResponse = {
-        success: true,
+        code: 1,
         message: '数据库暂时不可用，日志已缓存到本地',
         data: {
           cached: true,
-          totalCached: cacheInfo.count
-        },
-        timestamp: DateTime.now()
+          totalCached: cacheInfo.count,
+          timestamp: DateTime.now()
+        }
       };
       
       res.json(response);
@@ -169,9 +178,8 @@ export const createLog = asyncHandler(async (req: Request, res: Response): Promi
       console.error('❌ 缓存日志也失败:', cacheError);
       
       const response: ApiResponse = {
-        success: false,
-        error: '日志存储失败，数据库和缓存都不可用',
-        timestamp: DateTime.now()
+        code: 0,
+        message: '日志存储失败，数据库和缓存都不可用'
       };
       
       res.status(500).json(response);
@@ -190,7 +198,8 @@ export const getCacheStatus = asyncHandler(async (req: Request, res: Response): 
   const healthStatus = databaseHealth.getHealthStatus();
   
   const response: ApiResponse = {
-    success: true,
+    code: 1,
+    message: '缓存状态查询成功',
     data: {
       cache: cacheInfo,
       database: healthStatus,
@@ -210,14 +219,14 @@ export const processCachedLogs = asyncHandler(async (req: Request, res: Response
   const result = await databaseHealth.triggerCacheProcessing();
   
   const response: ApiResponse = {
-    success: result.success,
+    code: result.success ? 1 : 0,
     message: result.message,
     data: {
       processed: result.processed,
       failed: result.failed,
-      errors: result.errors
-    },
-    timestamp: DateTime.now()
+      errors: result.errors,
+      timestamp: DateTime.now()
+    }
   };
   
   if (result.success) {
@@ -236,9 +245,11 @@ export const clearCache = asyncHandler(async (req: Request, res: Response): Prom
   await logCache.clearCache();
   
   const response: ApiResponse = {
-    success: true,
+    code: 1,
     message: '缓存已清空',
-    timestamp: DateTime.now()
+    data: {
+      timestamp: DateTime.now()
+    }
   };
   
   res.json(response);
@@ -253,9 +264,9 @@ export const getSystemHealthReport = asyncHandler(async (req: Request, res: Resp
   const report = await databaseHealth.getDetailedHealthReport();
   
   const response: ApiResponse = {
-    success: true,
-    data: report,
-    timestamp: DateTime.now()
+    code: 1,
+    message: '系统健康报告获取成功',
+    data: report
   };
   
   res.json(response);
@@ -265,14 +276,14 @@ export const getSystemHealthReport = asyncHandler(async (req: Request, res: Resp
  * 获取日志统计信息
  */
 export const getLogStatistics = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-  const { timeRange = '24h' } = req.query;
+  const { timeRange = '24h' } = req.body;
   
   // 验证时间范围参数
   const validTimeRanges = ['1h', '24h', '7d', '30d', '90d'];
   if (!validTimeRanges.includes(timeRange as string)) {
     const response: ApiResponse = {
-      success: false,
-      error: '无效的时间范围参数，支持: 1h, 24h, 7d, 30d, 90d'
+      code: 0,
+      message: '无效的时间范围参数，支持: 1h, 24h, 7d, 30d, 90d'
     };
     res.status(400).json(response);
     return;
@@ -281,10 +292,13 @@ export const getLogStatistics = asyncHandler(async (req: Request, res: Response)
   const stats = await getLogStats(timeRange as string);
   
   const response: ApiResponse = {
-    success: true,
-    data: ResponseFormatter.formatLogStats(stats),
-    timeRange: timeRange as string,
-    timestamp: DateTime.now()
+    code: 1,
+    message: '日志统计信息获取成功',
+    data: {
+      stats: ResponseFormatter.formatLogStats(stats),
+      timeRange: timeRange as string,
+      timestamp: DateTime.now()
+    }
   };
   
   res.json(response);
@@ -300,8 +314,8 @@ export const createLogsBatch = asyncHandler(async (req: Request, res: Response):
   // 数据验证
   if (!Array.isArray(logs) || logs.length === 0) {
     const response: ApiResponse = {
-      success: false,
-      error: '日志数组不能为空'
+      code: 0,
+      message: '日志数组不能为空'
     };
     res.status(400).json(response);
     return;
@@ -309,8 +323,8 @@ export const createLogsBatch = asyncHandler(async (req: Request, res: Response):
   
   if (logs.length > 1000) {
     const response: ApiResponse = {
-      success: false,
-      error: '单次批量插入不能超过1000条记录'
+      code: 0,
+      message: '单次批量插入不能超过1000条记录'
     };
     res.status(400).json(response);
     return;
@@ -359,14 +373,14 @@ export const createLogsBatch = asyncHandler(async (req: Request, res: Response):
       const cacheInfo = await logCache.getCacheInfo();
       
       const response: ApiResponse = {
-        success: true,
+        code: 1,
         message: `数据库暂时不可用，已缓存${processedLogs.length}条日志到本地`,
         data: {
           count: processedLogs.length,
           cached: true,
-          totalCached: cacheInfo.count
-        },
-        timestamp: DateTime.now()
+          totalCached: cacheInfo.count,
+          timestamp: DateTime.now()
+        }
       };
       
       res.json(response);
@@ -375,9 +389,8 @@ export const createLogsBatch = asyncHandler(async (req: Request, res: Response):
       console.error('❌ 批量缓存日志失败:', cacheError);
       
       const response: ApiResponse = {
-        success: false,
-        error: '批量日志存储失败，数据库和缓存都不可用',
-        timestamp: DateTime.now()
+        code: 0,
+        message: '批量日志存储失败，数据库和缓存都不可用'
       };
       
       res.status(500).json(response);
@@ -395,13 +408,13 @@ export const createLogsBatch = asyncHandler(async (req: Request, res: Response):
     }
     
     const response: ApiResponse = {
-      success: true,
+      code: 1,
       message: `成功存储${processedLogs.length}条日志`,
       data: {
         count: processedLogs.length,
-        cached: false
-      },
-      timestamp: DateTime.now()
+        cached: false,
+        timestamp: DateTime.now()
+      }
     };
     
     res.json(response);
@@ -415,14 +428,14 @@ export const createLogsBatch = asyncHandler(async (req: Request, res: Response):
       const cacheInfo = await logCache.getCacheInfo();
       
       const response: ApiResponse = {
-        success: true,
+        code: 1,
         message: `数据库暂时不可用，已缓存${processedLogs.length}条日志到本地`,
         data: {
           count: processedLogs.length,
           cached: true,
-          totalCached: cacheInfo.count
-        },
-        timestamp: DateTime.now()
+          totalCached: cacheInfo.count,
+          timestamp: DateTime.now()
+        }
       };
       
       res.json(response);
@@ -431,9 +444,8 @@ export const createLogsBatch = asyncHandler(async (req: Request, res: Response):
       console.error('❌ 批量缓存日志也失败:', cacheError);
       
       const response: ApiResponse = {
-        success: false,
-        error: '批量日志存储失败，数据库和缓存都不可用',
-        timestamp: DateTime.now()
+        code: 0,
+        message: '批量日志存储失败，数据库和缓存都不可用'
       };
       
       res.status(500).json(response);

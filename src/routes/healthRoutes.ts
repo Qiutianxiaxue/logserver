@@ -4,9 +4,9 @@ import { getHome, getHealth } from '../controllers/healthController';
 const router = Router();
 
 // 首页信息
-router.get('/', getHome);
+router.post('/', getHome);
 
 // 健康检查
-router.get('/health', getHealth);
+router.post('/health', getHealth);
 
 export default router; 

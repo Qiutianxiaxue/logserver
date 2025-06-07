@@ -21,7 +21,7 @@ const router = Router();
 router.use(addRequestTimestamp);
 
 // 获取日志列表（带时间验证）
-router.get("/", validateDateTime, getLogs);
+router.post("/query", validateDateTime, getLogs);
 
 // 创建单条日志
 router.post("/create", createLog);
@@ -30,14 +30,14 @@ router.post("/create", createLog);
 router.post("/batch", createLogsBatch);
 
 // 获取日志统计（带时间范围验证）
-router.get("/stats", validateTimeRange, getLogStatistics);
+router.post("/stats", validateTimeRange, getLogStatistics);
 
 // 缓存管理接口
-router.get("/cache/status", getCacheStatus);
+router.post("/cache/status", getCacheStatus);
 router.post("/cache/process", processCachedLogs);
-router.delete("/cache/clear", clearCache);
+router.post("/cache/clear", clearCache);
 
 // 系统健康报告接口
-router.get("/system/health", getSystemHealthReport);
+router.post("/system/health", getSystemHealthReport);
 
 export default router;

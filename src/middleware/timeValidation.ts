@@ -17,8 +17,8 @@ export const validateTimeRange = (req: Request, res: Response, next: NextFunctio
   
   if (!validTimeRanges.includes(timeRange as TimeRange)) {
     const response: ApiResponse = {
-      success: false,
-      error: '无效的时间范围参数',
+      code: 0,
+      message: '无效的时间范围参数',
       data: {
         validRanges: validTimeRanges,
         received: timeRange
@@ -37,11 +37,11 @@ export const validateTimeRange = (req: Request, res: Response, next: NextFunctio
 export const validateDateTime = (req: Request, res: Response, next: NextFunction): void => {
   const { startTime, endTime } = req.query;
   
-  // 验证开始时间
+    // 验证开始时间
   if (startTime && !DateTime.isValid(startTime as string)) {
     const response: ApiResponse = {
-      success: false,
-      error: '开始时间格式无效',
+      code: 0,
+      message: '开始时间格式无效',
       data: {
         received: startTime,
         expectedFormat: 'YYYY-MM-DD HH:mm:ss 或 ISO 8601 格式，如: 2025-12-11 10:00:00 或 2025-12-11T10:00:00Z'
@@ -50,12 +50,12 @@ export const validateDateTime = (req: Request, res: Response, next: NextFunction
     res.status(400).json(response);
     return;
   }
-  
+
   // 验证结束时间
   if (endTime && !DateTime.isValid(endTime as string)) {
     const response: ApiResponse = {
-      success: false,
-      error: '结束时间格式无效',
+      code: 0,
+      message: '结束时间格式无效',
       data: {
         received: endTime,
         expectedFormat: 'YYYY-MM-DD HH:mm:ss 或 ISO 8601 格式，如: 2025-12-11 10:00:00 或 2025-12-11T10:00:00Z'
@@ -64,7 +64,7 @@ export const validateDateTime = (req: Request, res: Response, next: NextFunction
     res.status(400).json(response);
     return;
   }
-  
+
   // 验证时间逻辑（开始时间不能晚于结束时间）
   if (startTime && endTime) {
     const start = DateTime.parse(startTime as string);
@@ -72,8 +72,8 @@ export const validateDateTime = (req: Request, res: Response, next: NextFunction
     
     if (start.isAfter(end)) {
       const response: ApiResponse = {
-        success: false,
-        error: '开始时间不能晚于结束时间',
+        code: 0,
+        message: '开始时间不能晚于结束时间',
         data: {
           startTime,
           endTime

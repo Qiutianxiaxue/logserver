@@ -82,14 +82,9 @@ export interface TimeRangeOption {
 
 // API响应类型
 export interface ApiResponse<T = any> {
-  success: boolean;
-  message?: string;
+  code: 0 | 1; // 0: 失败, 1: 成功
   data?: T;
-  error?: string;
-  timestamp?: string;
-  count?: number;
-  environment?: string;
-  timeRange?: string;
+  message: string;
 }
 
 // 数据库插入结果类型

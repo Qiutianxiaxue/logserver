@@ -9,7 +9,7 @@ export const getHome = (req: Request, res: Response): void => {
   const NODE_ENV = process.env.NODE_ENV || 'development';
   
   const response: ApiResponse = {
-    success: true,
+    code: 1,
     message: '欢迎使用日志服务器!',
     data: {
       timestamp: DateTime.now(),
@@ -31,7 +31,8 @@ export const getHealth = (req: Request, res: Response): void => {
   const NODE_ENV = process.env.NODE_ENV || 'development';
   
   const response: ApiResponse = {
-    success: true,
+    code: 1,
+    message: '系统健康状态正常',
     data: {
       status: 'healthy',
       uptime: process.uptime(),

@@ -31,8 +31,8 @@ app.use('/', routes);
 // 404处理
 app.use('*', (req: Request, res: Response) => {
   const response: ApiResponse = {
-    success: false,
-    error: '接口不存在',
+    code: 0,
+    message: '接口不存在',
     data: {
       path: req.originalUrl
     }
@@ -44,9 +44,8 @@ app.use('*', (req: Request, res: Response) => {
 app.use((err: HttpError, req: Request, res: Response, _next: NextFunction) => {
   console.error('服务器错误:', err);
   const response: ApiResponse = {
-    success: false,
-    error: '服务器内部错误',
-    message: err.message
+    code: 0,
+    message: `服务器内部错误: ${err.message}`
   };
   res.status(err.status || err.statusCode || 500).json(response);
 });
@@ -73,13 +72,17 @@ const startServer = async (): Promise<void> => {
     // 启动HTTP服务器
     app.listen(PORT, () => {
       console.log(`🚀 服务器运行在 http://localhost:${PORT}`);
-      console.log(`📊 健康检查: http://localhost:${PORT}/health`);
-      console.log(`📝 日志API: http://localhost:${PORT}${API_PREFIX}/logs`);
-      console.log(`📈 日志统计: http://localhost:${PORT}${API_PREFIX}/logs/stats`);
-      console.log(`💾 缓存状态: http://localhost:${PORT}${API_PREFIX}/logs/cache/status`);
-      console.log(`🔧 系统报告: http://localhost:${PORT}${API_PREFIX}/logs/system/health`);
+      console.log(`📊 首页信息: POST http://localhost:${PORT}/`);
+      console.log(`🔍 健康检查: POST http://localhost:${PORT}/health`);
+      console.log(`📝 查询日志: POST http://localhost:${PORT}${API_PREFIX}/logs/query`);
+      console.log(`✍️ 创建日志: POST http://localhost:${PORT}${API_PREFIX}/logs/create`);
+      console.log(`📊 批量日志: POST http://localhost:${PORT}${API_PREFIX}/logs/batch`);
+      console.log(`📈 日志统计: POST http://localhost:${PORT}${API_PREFIX}/logs/stats`);
+      console.log(`💾 缓存状态: POST http://localhost:${PORT}${API_PREFIX}/logs/cache/status`);
+      console.log(`🔧 系统报告: POST http://localhost:${PORT}${API_PREFIX}/logs/system/health`);
       console.log(`🌍 运行环境: ${NODE_ENV}`);
       console.log(`🔄 运行模式: ${dbClient ? '在线模式' : '离线模式（缓存模式）'}`);
+      console.log(`📋 所有接口统一使用 POST 方法`);
       if (NODE_ENV === 'development') {
         console.log(`📋 环境变量已加载: ${process.env.NODE_ENV ? '✅' : '❌'}`);
       }
