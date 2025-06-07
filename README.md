@@ -218,12 +218,24 @@ logserver/
 - **状态监控**: 实时监控数据库连接状态
 - **故障转移**: 数据库不可用时自动切换到缓存模式
 
+### 智能缓存处理
+
+系统支持多种方式自动处理缓存日志，确保数据不丢失：
+
+- **定期自动处理**: 健康检查每30秒检查一次，发现缓存时自动处理
+- **状态恢复处理**: 数据库从不健康变为健康时立即处理缓存
+- **写入触发处理**: 每次成功写入日志后检查并处理缓存
+- **后台异步处理**: 缓存处理在后台进行，不影响当前请求响应
+- **错误重试机制**: 处理失败的日志会保留在缓存中，等待下次处理
+
 ### 缓存管理
 
 - **状态查询**: 查看缓存数量、文件大小、最新/最旧缓存时间
+- **自动处理**: 系统自动检测并处理缓存，无需人工干预
 - **手动处理**: 支持手动触发缓存日志写入数据库
 - **清空缓存**: 支持手动清空缓存文件
 - **备份机制**: 处理缓存前自动备份
+- **批量优化**: 每次最多处理100条，避免内存占用过大
 
 ## 开发说明
 
@@ -428,12 +440,13 @@ curl -X POST http://localhost:3000/api/logs/stats \
 ```
 
 ### 缓存管理示例
+
 ```bash
 # 获取缓存状态
 curl -X POST http://localhost:3000/api/logs/cache/status \
   -H "Content-Type: application/json"
 
-# 手动处理缓存
+# 手动处理缓存（强制检查数据库并处理缓存）
 curl -X POST http://localhost:3000/api/logs/cache/process \
   -H "Content-Type: application/json"
 
@@ -441,6 +454,49 @@ curl -X POST http://localhost:3000/api/logs/cache/process \
 curl -X POST http://localhost:3000/api/logs/cache/clear \
   -H "Content-Type: application/json"
 ```
+
+**缓存状态响应示例：**
+```json
+{
+  "code": 1,
+  "message": "缓存状态查询成功",
+  "data": {
+    "cache": {
+      "count": 156,
+      "oldestCacheTime": "2025-12-11 10:15:30",
+      "newestCacheTime": "2025-12-11 14:28:45",
+      "fileSizeBytes": 2048576,
+      "fileSizeMB": "1.95"
+    },
+    "database": {
+      "isHealthy": true,
+      "lastCheckTime": "2025-12-11 14:30:20",
+      "retryCount": 0,
+      "maxRetries": 5
+    },
+    "timestamp": "2025-12-11 14:30:25"
+  }
+}
+```
+
+**缓存处理响应示例：**
+```json
+{
+  "code": 1,
+  "message": "处理完成: 成功 150 条, 失败 0 条",
+  "data": {
+    "processed": 150,
+    "failed": 0,
+    "errors": [],
+    "timestamp": "2025-12-11 14:30:25"
+  }
+}
+```
+
+> **注意**: 系统会自动处理缓存，通常不需要手动干预。手动处理接口主要用于：
+> - 立即处理缓存而不等待定期检查
+> - 故障排查和运维管理
+> - 系统集成和监控
 
 ### 系统监控示例
 ```bash

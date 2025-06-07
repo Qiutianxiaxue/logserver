@@ -146,6 +146,16 @@ export const createLog = asyncHandler(async (req: Request, res: Response): Promi
       console.log('✅ 日志已存储:', logData);
     }
     
+    // 数据库写入成功，检查并处理缓存中的待处理日志
+    const cacheInfo = await logCache.getCacheInfo();
+    if (cacheInfo.count > 0) {
+      console.log(`📦 检测到 ${cacheInfo.count} 条缓存日志，触发后台处理...`);
+      // 异步处理缓存，不阻塞当前响应
+      databaseHealth.triggerCacheProcessing().catch(error => {
+        console.error('❌ 后台处理缓存失败:', error);
+      });
+    }
+    
     const response: ApiResponse = {
       code: 1,
       message: '日志已成功存储',
@@ -217,6 +227,18 @@ export const getCacheStatus = asyncHandler(async (req: Request, res: Response): 
  */
 export const processCachedLogs = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const databaseHealth = DatabaseHealth.getInstance();
+  
+  // 强制检查数据库健康状态
+  const isHealthy = await databaseHealth.checkDatabaseConnection();
+  
+  if (!isHealthy) {
+    const response: ApiResponse = {
+      code: 0,
+      message: '数据库连接不可用，无法处理缓存'
+    };
+    res.status(500).json(response);
+    return;
+  }
   
   const result = await databaseHealth.triggerCacheProcessing();
   
@@ -407,6 +429,16 @@ export const createLogsBatch = asyncHandler(async (req: Request, res: Response):
     
     if (NODE_ENV === 'development') {
       console.log(`✅ 批量插入${processedLogs.length}条日志成功`);
+    }
+    
+    // 批量写入成功，检查并处理缓存中的待处理日志
+    const cacheInfo = await logCache.getCacheInfo();
+    if (cacheInfo.count > 0) {
+      console.log(`📦 检测到 ${cacheInfo.count} 条缓存日志，触发后台处理...`);
+      // 异步处理缓存，不阻塞当前响应
+      databaseHealth.triggerCacheProcessing().catch(error => {
+        console.error('❌ 后台处理缓存失败:', error);
+      });
     }
     
     const response: ApiResponse = {

@@ -73,7 +73,9 @@ export class DatabaseHealth {
       if (healthResult.success) {
         console.log('✅ 数据库完整健康检查通过');
         
-        if (!this.isHealthy) {
+        const wasUnhealthy = !this.isHealthy;
+        
+        if (wasUnhealthy) {
           console.log('✅ 数据库连接已恢复');
           this.isHealthy = true;
           this.retryCount = 0;
@@ -82,8 +84,12 @@ export class DatabaseHealth {
           await this.processCachedLogsOnReconnect();
         } else {
           console.log('✅ 数据库连接正常');
+          
+          // 即使数据库一直健康，也要检查是否有缓存需要处理
+          await this.checkAndProcessPendingCache();
         }
         
+        this.isHealthy = true;
         this.lastCheckTime = DateTime.nowISO();
         return true;
       } else {
@@ -154,6 +160,39 @@ export class DatabaseHealth {
       clearInterval(this.checkInterval);
       this.checkInterval = null;
       console.log('🛑 数据库健康检查已停止');
+    }
+  }
+
+  /**
+   * 检查并处理待处理的缓存（用于定期检查）
+   */
+  private async checkAndProcessPendingCache(): Promise<void> {
+    try {
+      const cacheInfo = await this.logCache.getCacheInfo();
+      
+      if (cacheInfo.count === 0) {
+        // 没有缓存，无需处理
+        return;
+      }
+
+      console.log(`🔄 发现 ${cacheInfo.count} 条待处理缓存日志，开始处理...`);
+      
+      // 备份缓存文件
+      await this.logCache.backupCache();
+      
+      // 处理缓存的日志
+      const result = await this.logCache.processCachedLogs(async (logData) => {
+        const { insertLog } = await import('../config/database');
+        await insertLog(logData);
+      });
+      
+      console.log(`✅ 待处理缓存日志处理完成: 成功 ${result.processed} 条, 失败 ${result.failed} 条`);
+      
+      if (result.failed > 0) {
+        console.error('❌ 部分缓存日志处理失败:', result.errors);
+      }
+    } catch (error) {
+      console.error('❌ 检查和处理缓存日志时发生错误:', error);
     }
   }
 
