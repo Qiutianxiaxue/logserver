@@ -1,0 +1,750 @@
+openapi: 3.0.3
+info:
+  title: 日志服务器 API
+  description: |
+    基于 Node.js、Express 和 TypeScript 的日志服务器 API。
+    
+    ## 功能特性
+    - 统一的响应格式 (code/data/message)
+    - 所有接口使用 POST 方法
+    - 支持日志缓存和数据库健康检查
+    - 支持批量日志提交
+    - 完整的时间处理和验证
+    
+    ## 响应格式
+    所有接口统一返回格式：
+    ```json
+    {
+      "code": 1,           // 0: 失败, 1: 成功
+      "message": "说明",    // 操作结果说明
+      "data": {}           // 返回的数据 (可选)
+    }
+    ```
+  version: 1.0.0
+  contact:
+    name: 日志服务器项目
+    url: https://github.com/your-repo/logserver
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: 开发环境
+  - url: https://your-production-domain.com
+    description: 生产环境
+
+tags:
+  - name: 基础
+    description: 基础接口 (首页、健康检查)
+  - name: 日志管理
+    description: 日志的创建、查询和统计
+  - name: 缓存管理
+    description: 本地缓存的管理和状态查询
+  - name: 系统监控
+    description: 系统健康状态和监控
+
+components:
+  schemas:
+    ApiResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          enum: [0, 1]
+          description: "0: 失败, 1: 成功"
+          example: 1
+        message:
+          type: string
+          description: 操作结果说明
+          example: "操作成功"
+        data:
+          type: object
+          description: 返回的数据
+          
+    LogData:
+      type: object
+      required:
+        - message
+      properties:
+        level:
+          type: string
+          enum: [debug, info, warn, error]
+          default: info
+          description: 日志级别
+        message:
+          type: string
+          description: 日志消息
+          example: "用户登录成功"
+        service:
+          type: string
+          default: unknown
+          description: 服务名称
+          example: "auth-service"
+        host:
+          type: string
+          description: 主机名
+        user_id:
+          type: string
+          description: 用户ID
+        session_id:
+          type: string
+          description: 会话ID
+        request_id:
+          type: string
+          description: 请求ID
+        ip:
+          type: string
+          description: IP地址
+        user_agent:
+          type: string
+          description: 用户代理
+        url:
+          type: string
+          description: 请求URL
+        method:
+          type: string
+          description: HTTP方法
+        status_code:
+          type: integer
+          description: HTTP状态码
+        response_time:
+          type: integer
+          description: 响应时间(ms)
+        error_stack:
+          type: string
+          description: 错误堆栈
+        extra_data:
+          type: object
+          description: 额外数据
+        timestamp:
+          type: string
+          description: 时间戳 (YYYY-MM-DD HH:mm:ss 或 ISO 8601)
+          example: "2025-12-11 14:30:25"
+          
+    LogQueryRequest:
+      type: object
+      properties:
+        limit:
+          type: integer
+          default: 100
+          minimum: 1
+          maximum: 1000
+          description: 限制数量
+        offset:
+          type: integer
+          default: 0
+          minimum: 0
+          description: 偏移量
+        level:
+          type: string
+          enum: [debug, info, warn, error]
+          description: 日志级别过滤
+        service:
+          type: string
+          description: 服务名过滤
+        startTime:
+          type: string
+          description: 开始时间 (YYYY-MM-DD HH:mm:ss)
+          example: "2025-12-11 10:00:00"
+        endTime:
+          type: string
+          description: 结束时间 (YYYY-MM-DD HH:mm:ss)
+          example: "2025-12-11 18:00:00"
+        keyword:
+          type: string
+          description: 关键词搜索
+          
+    BatchLogRequest:
+      type: object
+      required:
+        - logs
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/LogData'
+          minItems: 1
+          maxItems: 1000
+          description: 日志数组 (最多1000条)
+          
+    StatsRequest:
+      type: object
+      properties:
+        timeRange:
+          type: string
+          enum: [1h, 24h, 7d, 30d, 90d]
+          default: 24h
+          description: 时间范围
+
+paths:
+  /:
+    post:
+      tags:
+        - 基础
+      summary: 首页信息
+      description: 获取服务器基本信息
+      responses:
+        '200':
+          description: 成功获取首页信息
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+                          status:
+                            type: string
+                            example: "running"
+                          environment:
+                            type: string
+                            example: "development"
+                          version:
+                            type: string
+                            example: "1.0.0"
+                          server_time:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+                          timezone:
+                            type: string
+                            example: "Asia/Shanghai"
+              example:
+                code: 1
+                message: "欢迎使用日志服务器!"
+                data:
+                  timestamp: "2025-12-11 14:30:25"
+                  status: "running"
+                  environment: "development"
+                  version: "1.0.0"
+                  server_time: "2025-12-11 14:30:25"
+                  timezone: "Asia/Shanghai"
+
+  /health:
+    post:
+      tags:
+        - 基础
+      summary: 健康检查
+      description: 检查服务器健康状态
+      responses:
+        '200':
+          description: 健康检查成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            example: "healthy"
+                          uptime:
+                            type: number
+                            example: 3600.123
+                          uptime_human:
+                            type: string
+                            example: "2025-12-11 13:30:25"
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+                          environment:
+                            type: string
+                            example: "development"
+                          memory:
+                            type: object
+                          pid:
+                            type: integer
+                            example: 12345
+                          timezone:
+                            type: string
+                            example: "Asia/Shanghai"
+
+  /api/logs/query:
+    post:
+      tags:
+        - 日志管理
+      summary: 查询日志列表
+      description: 根据条件查询日志记录
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogQueryRequest'
+            examples:
+              basic:
+                summary: 基础查询
+                value:
+                  limit: 50
+                  offset: 0
+              filtered:
+                summary: 过滤查询
+                value:
+                  limit: 100
+                  level: "error"
+                  service: "auth-service"
+                  startTime: "2025-12-11 10:00:00"
+                  endTime: "2025-12-11 18:00:00"
+              search:
+                summary: 关键词搜索
+                value:
+                  keyword: "登录"
+                  limit: 20
+      responses:
+        '200':
+          description: 成功获取日志列表
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          logs:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/LogData'
+                          count:
+                            type: integer
+                            example: 25
+                          environment:
+                            type: string
+                            example: "development"
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              example:
+                code: 0
+                message: "开始时间格式无效"
+
+  /api/logs/create:
+    post:
+      tags:
+        - 日志管理
+      summary: 创建单条日志
+      description: 提交单条日志记录
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogData'
+            examples:
+              info_log:
+                summary: 信息日志
+                value:
+                  level: "info"
+                  message: "用户登录成功"
+                  service: "auth-service"
+                  user_id: "user123"
+                  extra_data:
+                    action: "login"
+                    duration: 1200
+              error_log:
+                summary: 错误日志
+                value:
+                  level: "error"
+                  message: "数据库连接失败"
+                  service: "database-service"
+                  error_stack: "Error: Connection timeout\n  at Database.connect..."
+      responses:
+        '200':
+          description: 日志创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+                          cached:
+                            type: boolean
+                            description: 是否已缓存 (数据库不可用时)
+                          totalCached:
+                            type: integer
+                            description: 总缓存数量
+              examples:
+                success:
+                  summary: 成功存储
+                  value:
+                    code: 1
+                    message: "日志已成功存储"
+                    data:
+                      timestamp: "2025-12-11 14:30:25"
+                cached:
+                  summary: 缓存模式
+                  value:
+                    code: 1
+                    message: "数据库暂时不可用，日志已缓存到本地"
+                    data:
+                      cached: true
+                      totalCached: 156
+                      timestamp: "2025-12-11 14:30:25"
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              example:
+                code: 0
+                message: "日志消息不能为空"
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              example:
+                code: 0
+                message: "日志存储失败，数据库和缓存都不可用"
+
+  /api/logs/batch:
+    post:
+      tags:
+        - 日志管理
+      summary: 批量创建日志
+      description: 批量提交日志记录 (最多1000条)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchLogRequest'
+            example:
+              logs:
+                - level: "info"
+                  message: "用户登录"
+                  service: "auth-service"
+                  user_id: "user123"
+                - level: "info"
+                  message: "获取用户信息"
+                  service: "user-service"
+                  user_id: "user123"
+                - level: "warn"
+                  message: "请求频率过高"
+                  service: "rate-limiter"
+                  user_id: "user123"
+      responses:
+        '200':
+          description: 批量日志创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          count:
+                            type: integer
+                            example: 3
+                          cached:
+                            type: boolean
+                            example: false
+                          totalCached:
+                            type: integer
+                            description: 总缓存数量 (缓存模式时)
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                empty_array:
+                  summary: 空数组
+                  value:
+                    code: 0
+                    message: "日志数组不能为空"
+                too_many:
+                  summary: 超出限制
+                  value:
+                    code: 0
+                    message: "单次批量插入不能超过1000条记录"
+
+  /api/logs/stats:
+    post:
+      tags:
+        - 日志管理
+      summary: 获取日志统计
+      description: 获取指定时间范围内的日志统计信息
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatsRequest'
+            examples:
+              hour:
+                summary: 1小时统计
+                value:
+                  timeRange: "1h"
+              day:
+                summary: 24小时统计
+                value:
+                  timeRange: "24h"
+              week:
+                summary: 7天统计
+                value:
+                  timeRange: "7d"
+      responses:
+        '200':
+          description: 统计信息获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                level:
+                                  type: string
+                                  example: "error"
+                                count:
+                                  type: integer
+                                  example: 25
+                                service:
+                                  type: string
+                                  example: "auth-service"
+                                hour:
+                                  type: integer
+                                  example: 14
+                          timeRange:
+                            type: string
+                            example: "24h"
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+
+  /api/logs/cache/status:
+    post:
+      tags:
+        - 缓存管理
+      summary: 获取缓存状态
+      description: 查询本地缓存的状态信息
+      responses:
+        '200':
+          description: 缓存状态获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          cache:
+                            type: object
+                            properties:
+                              count:
+                                type: integer
+                                example: 156
+                              oldestCacheTime:
+                                type: string
+                                example: "2025-12-11 10:15:30"
+                              newestCacheTime:
+                                type: string
+                                example: "2025-12-11 14:28:45"
+                              fileSizeBytes:
+                                type: integer
+                                example: 2048576
+                              fileSizeMB:
+                                type: string
+                                example: "1.95"
+                          database:
+                            type: object
+                            properties:
+                              isHealthy:
+                                type: boolean
+                                example: false
+                              lastCheckTime:
+                                type: string
+                                example: "2025-12-11 14:30:20"
+                              retryCount:
+                                type: integer
+                                example: 3
+                              maxRetries:
+                                type: integer
+                                example: 5
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+
+  /api/logs/cache/process:
+    post:
+      tags:
+        - 缓存管理
+      summary: 处理缓存日志
+      description: 手动触发缓存日志写入数据库
+      responses:
+        '200':
+          description: 缓存处理成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          processed:
+                            type: integer
+                            example: 150
+                          failed:
+                            type: integer
+                            example: 6
+                          errors:
+                            type: array
+                            items:
+                              type: string
+                            example: ["处理缓存日志失败 (ID: cache_123): Database error"]
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+        '500':
+          description: 缓存处理失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              example:
+                code: 0
+                message: "数据库连接不可用"
+
+  /api/logs/cache/clear:
+    post:
+      tags:
+        - 缓存管理
+      summary: 清空缓存
+      description: 手动清空本地缓存文件
+      responses:
+        '200':
+          description: 缓存清空成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+
+  /api/logs/system/health:
+    post:
+      tags:
+        - 系统监控
+      summary: 系统健康报告
+      description: 获取详细的系统健康状态报告
+      responses:
+        '200':
+          description: 系统健康报告获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          database:
+                            type: object
+                            properties:
+                              isHealthy:
+                                type: boolean
+                                example: true
+                              lastCheckTime:
+                                type: string
+                                example: "2025-12-11 14:30:20"
+                              retryCount:
+                                type: integer
+                                example: 0
+                              maxRetries:
+                                type: integer
+                                example: 5
+                          cache:
+                            type: object
+                            properties:
+                              count:
+                                type: integer
+                                example: 0
+                              fileSizeBytes:
+                                type: integer
+                                example: 0
+                              fileSizeMB:
+                                type: string
+                                example: "0.00"
+                          system:
+                            type: object
+                            properties:
+                              uptime:
+                                type: number
+                                example: 3600.123
+                              memory:
+                                type: object
+                                properties:
+                                  rss:
+                                    type: integer
+                                  heapTotal:
+                                    type: integer
+                                  heapUsed:
+                                    type: integer
+                                  external:
+                                    type: integer
+                                  arrayBuffers:
+                                    type: integer
+                              timestamp:
+                                type: string
+                                example: "2025-12-11 14:30:25" 
