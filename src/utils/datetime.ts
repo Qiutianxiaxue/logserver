@@ -109,6 +109,14 @@ export class DateTime {
   }
 
   /**
+   * 转换为 ClickHouse 兼容的时间戳格式
+   * ClickHouse DateTime64(3) 字段期望格式: YYYY-MM-DD HH:mm:ss.SSS
+   */
+  static toClickHouseFormat(date?: dayjs.ConfigType): string {
+    return dayjs(date).format('YYYY-MM-DD HH:mm:ss.SSS');
+  }
+
+  /**
    * 转换为指定时区
    */
   static toTimezone(date?: dayjs.ConfigType, timezone: string = DEFAULT_TIMEZONE): string {

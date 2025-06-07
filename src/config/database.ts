@@ -10,7 +10,7 @@ const clickhouseConfig: ClickHouseConfig = {
   database: process.env.CLICKHOUSE_DATABASE || 'default',
   // 连接选项
   clickhouse_settings: {
-    // 异步插入，适合高并发场景
+    // 异步插入，但等待插入完成以确保数据已写入
     async_insert: 1,
     wait_for_async_insert: 0,
   },
@@ -139,14 +139,50 @@ export const insertLog = async (logData: LogData): Promise<DatabaseInsertResult>
   }
 
   try {
+    // 预处理数据，确保所有字段格式正确
+    const processedData = {
+      ...logData,
+      // 确保 extra_data 是字符串格式
+      extra_data: typeof logData.extra_data === 'string' ? 
+        logData.extra_data : 
+        JSON.stringify(logData.extra_data || {}),
+      // 转换时间戳为 ClickHouse 兼容格式 (YYYY-MM-DD HH:mm:ss.SSS)
+      timestamp: DateTime.toClickHouseFormat(logData.timestamp)
+    };
+
+    // 验证数据格式
+    if (!processedData.timestamp) {
+      throw new Error('时间戳字段不能为空');
+    }
+
+    if (!processedData.message) {
+      throw new Error('消息字段不能为空');
+    }
+
     const result = await clickhouseClient.insert({
       table: `${clickhouseConfig.database}.application_logs`,
-      values: [logData],
+      values: [processedData],
       format: 'JSONEachRow',
     });
     return result as DatabaseInsertResult;
   } catch (error) {
     console.error('❌ 插入日志失败:', (error as Error).message);
+    console.error('❌ 原始数据:', JSON.stringify(logData, null, 2));
+    
+         // 尝试解析并输出处理后的数据
+     try {
+       const debugData = {
+         ...logData,
+         extra_data: typeof logData.extra_data === 'string' ? 
+           logData.extra_data : 
+           JSON.stringify(logData.extra_data || {}),
+         timestamp: DateTime.toClickHouseFormat(logData.timestamp)
+       };
+       console.error('❌ 处理后数据:', JSON.stringify(debugData, null, 2));
+     } catch (debugError) {
+       console.error('❌ 数据调试输出失败:', debugError);
+     }
+    
     throw error;
   }
 };

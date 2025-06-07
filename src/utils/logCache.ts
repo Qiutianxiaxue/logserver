@@ -56,7 +56,7 @@ export class LogCache {
       // 添加缓存时间戳
       const logsWithCacheInfo = logs.map(log => ({
         ...log,
-        _cached_at: DateTime.nowISO(),
+        _cached_at: DateTime.toClickHouseFormat(), // 使用ClickHouse兼容格式
         _cache_id: this.generateCacheId()
       }));
 
@@ -156,8 +156,18 @@ export class LogCache {
         
         for (const logData of batch) {
           try {
-            // 移除缓存专用字段
+            // 移除缓存专用字段并确保数据格式正确
             const { _cached_at, _cache_id, ...originalLog } = logData;
+            
+            // 确保 extra_data 字段格式正确
+            if (originalLog.extra_data && typeof originalLog.extra_data === 'string') {
+              try {
+                originalLog.extra_data = JSON.parse(originalLog.extra_data);
+              } catch {
+                // 如果解析失败，保持原样
+              }
+            }
+            
             await insertFunction(originalLog as LogData);
             processed++;
             processedLogs.push(logData);

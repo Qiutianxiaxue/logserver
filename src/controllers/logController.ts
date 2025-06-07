@@ -63,10 +63,10 @@ export const createLog = asyncHandler(async (req: Request, res: Response): Promi
   }
   
   // 验证时间戳格式（如果提供）
-  let timestamp = DateTime.nowISO(); // 数据库存储使用ISO格式
+  let timestamp = DateTime.toClickHouseFormat(); // 默认使用当前时间，ClickHouse兼容格式
   if (body.timestamp) {
     if (DateTime.isValid(body.timestamp)) {
-      timestamp = DateTime.toISOString(body.timestamp);
+      timestamp = DateTime.toClickHouseFormat(body.timestamp);
     } else {
       const response: ApiResponse = {
         code: 0,
@@ -78,21 +78,23 @@ export const createLog = asyncHandler(async (req: Request, res: Response): Promi
   }
 
   // 构建日志数据
+  const level = body.level || 'info';
+  const validLevels = ['info', 'debug', 'warn', 'error'];
   const logData: LogData = {
-    level: body.level || 'info',
-    message: body.message,
-    service: body.service || 'unknown',
-    host: body.host || req.hostname,
-    user_id: body.user_id || '',
-    session_id: body.session_id || '',
-    request_id: body.request_id || '',
-    ip: req.ip || req.socket.remoteAddress || '',
-    user_agent: req.get('User-Agent') || '',
-    url: body.url || '',
-    method: body.method || req.method,
-    status_code: body.status_code || 0,
-    response_time: body.response_time || 0,
-    error_stack: body.error_stack || '',
+    level: validLevels.includes(level) ? level as 'info' | 'debug' | 'warn' | 'error' : 'info',
+    message: String(body.message || ''),
+    service: String(body.service || 'unknown'),
+    host: String(body.host || req.hostname || 'unknown'),
+    user_id: String(body.user_id || ''),
+    session_id: String(body.session_id || ''),
+    request_id: String(body.request_id || ''),
+    ip: String(req.ip || req.socket.remoteAddress || ''),
+    user_agent: String(req.get('User-Agent') || ''),
+    url: String(body.url || ''),
+    method: String(body.method || req.method || 'POST'),
+    status_code: Number(body.status_code || 0),
+    response_time: Number(body.response_time || 0),
+    error_stack: String(body.error_stack || ''),
     extra_data: body.extra_data || {},
     timestamp: timestamp
   };
@@ -333,9 +335,9 @@ export const createLogsBatch = asyncHandler(async (req: Request, res: Response):
   // 处理每条日志
   const processedLogs: LogData[] = logs.map((logItem: any) => {
     // 验证时间戳
-    let timestamp = DateTime.nowISO(); // 数据库存储使用ISO格式
+    let timestamp = DateTime.toClickHouseFormat(); // 默认使用当前时间，ClickHouse兼容格式
     if (logItem.timestamp && DateTime.isValid(logItem.timestamp)) {
-      timestamp = DateTime.toISOString(logItem.timestamp);
+      timestamp = DateTime.toClickHouseFormat(logItem.timestamp);
     }
 
     return {
