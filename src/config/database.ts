@@ -1,13 +1,22 @@
-import { createClient, ClickHouseClient } from '@clickhouse/client';
-import { LogData, LogQueryOptions, LogStats, ClickHouseConfig, DatabaseInsertResult } from '../types';
-import DateTime from '../utils/datetime';
+import { createClient, ClickHouseClient } from "@clickhouse/client";
+import {
+  LogData,
+  LogQueryOptions,
+  LogStats,
+  ClickHouseConfig,
+  DatabaseInsertResult,
+  ApiRequestLogData,
+  ApiRequestLogQueryOptions,
+  ApiRequestLogStats,
+} from "../types";
+import DateTime from "../utils/datetime";
 
 // ClickHouse 配置
 const clickhouseConfig: ClickHouseConfig = {
-  url: process.env.CLICKHOUSE_HOST || 'http://localhost:18123',
-  username: process.env.CLICKHOUSE_USERNAME || 'default',
-  password: process.env.CLICKHOUSE_PASSWORD || 'changeme',
-  database: process.env.CLICKHOUSE_DATABASE || 'default',
+  url: process.env.CLICKHOUSE_HOST || "http://localhost:18123",
+  username: process.env.CLICKHOUSE_USERNAME || "default",
+  password: process.env.CLICKHOUSE_PASSWORD || "changeme",
+  database: process.env.CLICKHOUSE_DATABASE || "default",
   // 连接选项
   clickhouse_settings: {
     // 异步插入，但等待插入完成以确保数据已写入
@@ -20,7 +29,7 @@ const clickhouseConfig: ClickHouseConfig = {
   compression: {
     response: true,
     request: false,
-  }
+  },
 };
 
 // 创建ClickHouse客户端
@@ -32,24 +41,27 @@ let clickhouseClient: ClickHouseClient | null = null;
 export const initClickHouse = async (): Promise<ClickHouseClient | null> => {
   try {
     clickhouseClient = createClient(clickhouseConfig);
-    
+
     // 测试连接
     const result = await clickhouseClient.ping();
-    console.log('✅ ClickHouse连接成功:', result);
-    
+    console.log("✅ ClickHouse连接成功:", result);
+
     // 创建数据库（如果不存在）
     await clickhouseClient.command({
       query: `CREATE DATABASE IF NOT EXISTS ${clickhouseConfig.database}`,
     });
-    
+
     // 创建日志表（如果不存在）
     await createLogTable();
-    
+
+    // 创建API请求日志表（如果不存在）
+    await createApiRequestLogTable();
+
     return clickhouseClient;
   } catch (error) {
-    console.error('❌ ClickHouse初始连接失败:', (error as Error).message);
-    console.warn('⚠️ 服务将在离线模式下启动，健康检查服务会持续尝试重连');
-    
+    console.error("❌ ClickHouse初始连接失败:", (error as Error).message);
+    console.warn("⚠️ 服务将在离线模式下启动，健康检查服务会持续尝试重连");
+
     // 重置客户端为null，让健康检查服务处理重连
     clickhouseClient = null;
     return null;
@@ -64,21 +76,24 @@ export const reconnectClickHouse = async (): Promise<boolean> => {
     if (!clickhouseClient) {
       clickhouseClient = createClient(clickhouseConfig);
     }
-    
+
     // 测试连接
     await clickhouseClient.ping();
-    console.log('✅ ClickHouse重连成功');
-    
+    console.log("✅ ClickHouse重连成功");
+
     // 确保数据库和表存在
     await clickhouseClient.command({
       query: `CREATE DATABASE IF NOT EXISTS ${clickhouseConfig.database}`,
     });
-    
+
     await createLogTable();
-    
+
+    // 创建API请求日志表（如果不存在）
+    await createApiRequestLogTable();
+
     return true;
   } catch (error) {
-    console.error('❌ ClickHouse重连失败:', (error as Error).message);
+    console.error("❌ ClickHouse重连失败:", (error as Error).message);
     clickhouseClient = null;
     return false;
   }
@@ -89,7 +104,7 @@ export const reconnectClickHouse = async (): Promise<boolean> => {
  */
 const createLogTable = async (): Promise<void> => {
   if (!clickhouseClient) {
-    throw new Error('ClickHouse客户端未初始化');
+    throw new Error("ClickHouse客户端未初始化");
   }
 
   const createTableQuery = `
@@ -118,14 +133,98 @@ const createLogTable = async (): Promise<void> => {
     TTL toDateTime(timestamp) + INTERVAL 90 DAY
     SETTINGS index_granularity = 8192
   `;
-  
+
   try {
     await clickhouseClient.command({
       query: createTableQuery,
     });
-    console.log('✅ 日志表创建成功');
+    console.log("✅ 日志表创建成功");
   } catch (error) {
-    console.error('❌ 创建日志表失败:', (error as Error).message);
+    console.error("❌ 创建日志表失败:", (error as Error).message);
+    throw error;
+  }
+};
+
+/**
+ * 创建API请求日志表
+ */
+const createApiRequestLogTable = async (): Promise<void> => {
+  if (!clickhouseClient) {
+    throw new Error("ClickHouse客户端未初始化");
+  }
+
+  const createTableQuery = `
+    CREATE TABLE IF NOT EXISTS ${clickhouseConfig.database}.api_request_logs (
+      -- 基础字段
+      id UUID DEFAULT generateUUIDv4(),
+      timestamp DateTime64(3) DEFAULT now64(),
+      created_date Date DEFAULT today(),
+      
+      -- 请求基本信息
+      method String,
+      url String,
+      host String,
+      path String,
+      query_params String DEFAULT '',
+      headers String DEFAULT '{}',
+      body String DEFAULT '',
+      body_size UInt32 DEFAULT 0,
+      content_type String DEFAULT '',
+
+      -- 应用信息
+      appid String,
+      app_name String,
+
+      -- 企业信息
+      enterprise_id String,
+      enterprise_name String,
+
+      -- 用户和会话信息
+      user_id String DEFAULT '',
+      ip_address String DEFAULT '',
+      real_ip String DEFAULT '',
+      user_agent String DEFAULT '',
+      referer String DEFAULT '',
+
+      -- 响应信息
+      status_code UInt16,
+      response_body String DEFAULT '',
+      response_size UInt32 DEFAULT 0,
+      response_time UInt32,
+      response_headers String DEFAULT '{}',
+      
+      -- 地理位置信息
+      country_info String DEFAULT '',
+    
+      -- 设备和浏览器信息
+      browser String DEFAULT '',
+      
+      -- 服务器信息
+      service_type String DEFAULT '',
+      service_name String DEFAULT '',
+      service_ip String DEFAULT '',
+      
+      -- 错误和调试信息
+      error_code String DEFAULT '',
+      error_message String DEFAULT '',
+      error_trace String DEFAULT '',
+      
+    ) ENGINE = MergeTree()
+    PARTITION BY (toYYYYMM(timestamp), service_name)
+    ORDER BY (timestamp, service_name, status_code, response_time)
+    TTL toDateTime(timestamp) + INTERVAL 180 DAY
+    SETTINGS index_granularity = 8192,
+             merge_with_ttl_timeout = 3600,
+             max_parts_in_total = 10000
+  `;
+
+  try {
+    await clickhouseClient.command({
+      query: createTableQuery,
+    });
+    console.log("✅ API请求日志表创建成功");
+  } catch (error) {
+    console.error("❌ 创建API请求日志表失败:", (error as Error).message);
     throw error;
   }
 };
@@ -133,9 +232,11 @@ const createLogTable = async (): Promise<void> => {
 /**
  * 插入日志数据
  */
-export const insertLog = async (logData: LogData): Promise<DatabaseInsertResult> => {
+export const insertLog = async (
+  logData: LogData
+): Promise<DatabaseInsertResult> => {
   if (!clickhouseClient) {
-    throw new Error('ClickHouse客户端未初始化');
+    throw new Error("ClickHouse客户端未初始化");
   }
 
   try {
@@ -143,46 +244,48 @@ export const insertLog = async (logData: LogData): Promise<DatabaseInsertResult>
     const processedData = {
       ...logData,
       // 确保 extra_data 是字符串格式
-      extra_data: typeof logData.extra_data === 'string' ? 
-        logData.extra_data : 
-        JSON.stringify(logData.extra_data || {}),
+      extra_data:
+        typeof logData.extra_data === "string"
+          ? logData.extra_data
+          : JSON.stringify(logData.extra_data || {}),
       // 转换时间戳为 ClickHouse 兼容格式 (YYYY-MM-DD HH:mm:ss.SSS)
-      timestamp: DateTime.toClickHouseFormat(logData.timestamp)
+      timestamp: DateTime.toClickHouseFormat(logData.timestamp),
     };
 
     // 验证数据格式
     if (!processedData.timestamp) {
-      throw new Error('时间戳字段不能为空');
+      throw new Error("时间戳字段不能为空");
     }
 
     if (!processedData.message) {
-      throw new Error('消息字段不能为空');
+      throw new Error("消息字段不能为空");
     }
 
     const result = await clickhouseClient.insert({
       table: `${clickhouseConfig.database}.application_logs`,
       values: [processedData],
-      format: 'JSONEachRow',
+      format: "JSONEachRow",
     });
     return result as DatabaseInsertResult;
   } catch (error) {
-    console.error('❌ 插入日志失败:', (error as Error).message);
-    console.error('❌ 原始数据:', JSON.stringify(logData, null, 2));
-    
-         // 尝试解析并输出处理后的数据
-     try {
-       const debugData = {
-         ...logData,
-         extra_data: typeof logData.extra_data === 'string' ? 
-           logData.extra_data : 
-           JSON.stringify(logData.extra_data || {}),
-         timestamp: DateTime.toClickHouseFormat(logData.timestamp)
-       };
-       console.error('❌ 处理后数据:', JSON.stringify(debugData, null, 2));
-     } catch (debugError) {
-       console.error('❌ 数据调试输出失败:', debugError);
-     }
-    
+    console.error("❌ 插入日志失败:", (error as Error).message);
+    console.error("❌ 原始数据:", JSON.stringify(logData, null, 2));
+
+    // 尝试解析并输出处理后的数据
+    try {
+      const debugData = {
+        ...logData,
+        extra_data:
+          typeof logData.extra_data === "string"
+            ? logData.extra_data
+            : JSON.stringify(logData.extra_data || {}),
+        timestamp: DateTime.toClickHouseFormat(logData.timestamp),
+      };
+      console.error("❌ 处理后数据:", JSON.stringify(debugData, null, 2));
+    } catch (debugError) {
+      console.error("❌ 数据调试输出失败:", debugError);
+    }
+
     throw error;
   }
 };
@@ -190,9 +293,11 @@ export const insertLog = async (logData: LogData): Promise<DatabaseInsertResult>
 /**
  * 查询日志数据
  */
-export const queryLogs = async (options: LogQueryOptions = {}): Promise<LogData[]> => {
+export const queryLogs = async (
+  options: LogQueryOptions = {}
+): Promise<LogData[]> => {
   if (!clickhouseClient) {
-    throw new Error('ClickHouse客户端未初始化');
+    throw new Error("ClickHouse客户端未初始化");
   }
 
   const {
@@ -202,34 +307,34 @@ export const queryLogs = async (options: LogQueryOptions = {}): Promise<LogData[
     service = null,
     startTime = null,
     endTime = null,
-    keyword = null
+    keyword = null,
   } = options;
-  
+
   const whereConditions: string[] = [];
-  
+
   if (level) {
     whereConditions.push(`level = '${level}'`);
   }
-  
+
   if (service) {
     whereConditions.push(`service = '${service}'`);
   }
-  
+
   if (startTime) {
     whereConditions.push(`timestamp >= '${startTime}'`);
   }
-  
+
   if (endTime) {
     whereConditions.push(`timestamp <= '${endTime}'`);
   }
-  
+
   if (keyword) {
     whereConditions.push(`message LIKE '%${keyword}%'`);
   }
-  
-  const whereClause = whereConditions.length > 0 ? 
-    `WHERE ${whereConditions.join(' AND ')}` : '';
-  
+
+  const whereClause =
+    whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
+
   const query = `
     SELECT *
     FROM ${clickhouseConfig.database}.application_logs
@@ -238,17 +343,17 @@ export const queryLogs = async (options: LogQueryOptions = {}): Promise<LogData[
     LIMIT ${limit}
     OFFSET ${offset}
   `;
-  
+
   try {
     const result = await clickhouseClient.query({
       query: query,
-      format: 'JSONEachRow',
+      format: "JSONEachRow",
     });
-    
-    const data = await result.json() as LogData[];
+
+    const data = (await result.json()) as LogData[];
     return data;
   } catch (error) {
-    console.error('❌ 查询日志失败:', (error as Error).message);
+    console.error("❌ 查询日志失败:", (error as Error).message);
     throw error;
   }
 };
@@ -256,14 +361,16 @@ export const queryLogs = async (options: LogQueryOptions = {}): Promise<LogData[
 /**
  * 获取日志统计信息
  */
-export const getLogStats = async (timeRange: string = '24h'): Promise<LogStats[]> => {
+export const getLogStats = async (
+  timeRange: string = "24h"
+): Promise<LogStats[]> => {
   if (!clickhouseClient) {
-    throw new Error('ClickHouse客户端未初始化');
+    throw new Error("ClickHouse客户端未初始化");
   }
 
   // 使用DateTime工具类获取时间条件
   const timeCondition = DateTime.getClickHouseTimeCondition(timeRange);
-  
+
   const query = `
     SELECT 
       level,
@@ -275,17 +382,17 @@ export const getLogStats = async (timeRange: string = '24h'): Promise<LogStats[]
     GROUP BY level, service, hour
     ORDER BY hour DESC, count DESC
   `;
-  
+
   try {
     const result = await clickhouseClient.query({
       query: query,
-      format: 'JSONEachRow',
+      format: "JSONEachRow",
     });
-    
-    const data = await result.json() as LogStats[];
+
+    const data = (await result.json()) as LogStats[];
     return data;
   } catch (error) {
-    console.error('❌ 获取日志统计失败:', (error as Error).message);
+    console.error("❌ 获取日志统计失败:", (error as Error).message);
     throw error;
   }
 };
@@ -296,7 +403,7 @@ export const getLogStats = async (timeRange: string = '24h'): Promise<LogStats[]
 export const closeConnection = async (): Promise<void> => {
   if (clickhouseClient) {
     await clickhouseClient.close();
-    console.log('🔒 ClickHouse连接已关闭');
+    console.log("🔒 ClickHouse连接已关闭");
   }
 };
 
@@ -316,9 +423,9 @@ export const database = {
    */
   async ping(): Promise<{ success: boolean }> {
     if (!clickhouseClient) {
-      throw new Error('ClickHouse客户端未初始化');
+      throw new Error("ClickHouse客户端未初始化");
     }
-    
+
     await clickhouseClient.ping();
     return { success: true };
   },
@@ -326,63 +433,64 @@ export const database = {
   /**
    * 真实的数据库连接和权限检查
    */
-  async healthCheck(): Promise<{ 
-    success: boolean; 
+  async healthCheck(): Promise<{
+    success: boolean;
     details: {
       serverPing: boolean;
       databaseAccess: boolean;
       tableAccess: boolean;
       error?: string;
-    }
+    };
   }> {
     if (!clickhouseClient) {
-      throw new Error('ClickHouse客户端未初始化');
+      throw new Error("ClickHouse客户端未初始化");
     }
 
     const details = {
       serverPing: false,
       databaseAccess: false,
       tableAccess: false,
-      error: undefined as string | undefined
+      error: undefined as string | undefined,
     };
 
     try {
       // 1. 检查服务器连接
       await clickhouseClient.ping();
       details.serverPing = true;
-      console.log('✅ 服务器 ping 成功');
+      console.log("✅ 服务器 ping 成功");
 
       // 2. 检查数据库访问权限
       await clickhouseClient.query({
         query: `SELECT 1 FROM system.databases WHERE name = '${clickhouseConfig.database}'`,
-        format: 'JSONEachRow'
+        format: "JSONEachRow",
       });
       details.databaseAccess = true;
-      console.log('✅ 数据库访问成功');
+      console.log("✅ 数据库访问成功");
 
       // 3. 检查日志表是否存在和可访问
       const tableCheckResult = await clickhouseClient.query({
         query: `SELECT COUNT(*) as count FROM ${clickhouseConfig.database}.application_logs LIMIT 1`,
-        format: 'JSONEachRow'
+        format: "JSONEachRow",
       });
-      
+
       // 尝试读取结果以确保查询真的执行成功了
       await tableCheckResult.json();
       details.tableAccess = true;
-      console.log('✅ 日志表访问成功');
+      console.log("✅ 日志表访问成功");
 
       return {
         success: true,
-        details
+        details,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       details.error = errorMessage;
-      console.error('❌ 数据库健康检查失败:', errorMessage);
-      
+      console.error("❌ 数据库健康检查失败:", errorMessage);
+
       return {
         success: false,
-        details
+        details,
       };
     }
   },
@@ -399,5 +507,463 @@ export const database = {
    */
   isInitialized(): boolean {
     return clickhouseClient !== null;
+  },
+};
+
+/**
+ * 插入API请求日志数据
+ */
+export const insertApiRequestLog = async (
+  logData: ApiRequestLogData
+): Promise<DatabaseInsertResult> => {
+  if (!clickhouseClient) {
+    throw new Error("ClickHouse客户端未初始化");
   }
-}; 
+
+  try {
+    // 预处理数据，确保所有字段格式正确
+    const processedData = {
+      ...logData,
+      // 确保复杂字段是字符串格式
+      headers:
+        typeof logData.headers === "string"
+          ? logData.headers
+          : JSON.stringify(logData.headers || {}),
+      response_headers:
+        typeof logData.response_headers === "string"
+          ? logData.response_headers
+          : JSON.stringify(logData.response_headers || {}),
+      business_metrics:
+        typeof logData.business_metrics === "string"
+          ? logData.business_metrics
+          : JSON.stringify(logData.business_metrics || {}),
+      custom_fields:
+        typeof logData.custom_fields === "string"
+          ? logData.custom_fields
+          : JSON.stringify(logData.custom_fields || {}),
+      // 转换布尔值为数字
+      is_bot:
+        typeof logData.is_bot === "boolean"
+          ? logData.is_bot
+            ? 1
+            : 0
+          : logData.is_bot || 0,
+      is_mobile:
+        typeof logData.is_mobile === "boolean"
+          ? logData.is_mobile
+            ? 1
+            : 0
+          : logData.is_mobile || 0,
+      is_crawler:
+        typeof logData.is_crawler === "boolean"
+          ? logData.is_crawler
+            ? 1
+            : 0
+          : logData.is_crawler || 0,
+      is_suspicious:
+        typeof logData.is_suspicious === "boolean"
+          ? logData.is_suspicious
+            ? 1
+            : 0
+          : logData.is_suspicious || 0,
+      // 转换时间戳为 ClickHouse 兼容格式
+      timestamp: DateTime.toClickHouseFormat(logData.timestamp),
+    };
+
+    // 验证必填字段
+    if (!processedData.timestamp) {
+      throw new Error("时间戳字段不能为空");
+    }
+
+    if (!processedData.method) {
+      throw new Error("HTTP方法字段不能为空");
+    }
+
+    if (!processedData.url) {
+      throw new Error("URL字段不能为空");
+    }
+
+    if (!processedData.status_code) {
+      throw new Error("状态码字段不能为空");
+    }
+
+    if (
+      processedData.response_time === undefined ||
+      processedData.response_time === null
+    ) {
+      throw new Error("响应时间字段不能为空");
+    }
+
+    const result = await clickhouseClient.insert({
+      table: `${clickhouseConfig.database}.api_request_logs`,
+      values: [processedData],
+      format: "JSONEachRow",
+    });
+
+    return result as DatabaseInsertResult;
+  } catch (error) {
+    console.error("❌ 插入API请求日志失败:", (error as Error).message);
+    console.error("❌ 原始数据:", JSON.stringify(logData, null, 2));
+    throw error;
+  }
+};
+
+/**
+ * 查询API请求日志数据
+ */
+export const queryApiRequestLogs = async (
+  options: ApiRequestLogQueryOptions = {}
+): Promise<ApiRequestLogData[]> => {
+  if (!clickhouseClient) {
+    throw new Error("ClickHouse客户端未初始化");
+  }
+
+  const {
+    limit = 100,
+    offset = 0,
+    startTime = null,
+    endTime = null,
+    method = null,
+    status_code = null,
+    service_name = null,
+    environment = null,
+    user_id = null,
+    session_id = null,
+    ip_address = null,
+    endpoint = null,
+    api_version = null,
+    min_response_time = null,
+    max_response_time = null,
+    has_error = null,
+    error_type = null,
+    trace_id = null,
+    tenant_id = null,
+    organization_id = null,
+    keyword = null,
+    sort_by = "timestamp",
+    sort_order = "DESC",
+    country_code = null,
+    city = null,
+    device_type = null,
+    is_mobile = null,
+    is_bot = null,
+  } = options;
+
+  const whereConditions: string[] = [];
+
+  // 时间过滤
+  if (startTime) {
+    whereConditions.push(`timestamp >= '${startTime}'`);
+  }
+
+  if (endTime) {
+    whereConditions.push(`timestamp <= '${endTime}'`);
+  }
+
+  // 基础过滤
+  if (method) {
+    whereConditions.push(`method = '${method}'`);
+  }
+
+  if (status_code) {
+    whereConditions.push(`status_code = ${status_code}`);
+  }
+
+  if (service_name) {
+    whereConditions.push(`service_name = '${service_name}'`);
+  }
+
+  if (environment) {
+    whereConditions.push(`environment = '${environment}'`);
+  }
+
+  // 用户和会话过滤
+  if (user_id) {
+    whereConditions.push(`user_id = '${user_id}'`);
+  }
+
+  if (session_id) {
+    whereConditions.push(`session_id = '${session_id}'`);
+  }
+
+  if (ip_address) {
+    whereConditions.push(`ip_address = '${ip_address}'`);
+  }
+
+  // API相关过滤
+  if (endpoint) {
+    whereConditions.push(`endpoint = '${endpoint}'`);
+  }
+
+  if (api_version) {
+    whereConditions.push(`api_version = '${api_version}'`);
+  }
+
+  // 性能过滤
+  if (min_response_time !== null) {
+    whereConditions.push(`response_time >= ${min_response_time}`);
+  }
+
+  if (max_response_time !== null) {
+    whereConditions.push(`response_time <= ${max_response_time}`);
+  }
+
+  // 错误过滤
+  if (has_error !== null) {
+    if (has_error) {
+      whereConditions.push(`(status_code >= 400 OR error_code != '')`);
+    } else {
+      whereConditions.push(`(status_code < 400 AND error_code = '')`);
+    }
+  }
+
+  if (error_type) {
+    whereConditions.push(`error_type = '${error_type}'`);
+  }
+
+  // 追踪相关
+  if (trace_id) {
+    whereConditions.push(`trace_id = '${trace_id}'`);
+  }
+
+  // 业务相关
+  if (tenant_id) {
+    whereConditions.push(`tenant_id = '${tenant_id}'`);
+  }
+
+  if (organization_id) {
+    whereConditions.push(`organization_id = '${organization_id}'`);
+  }
+
+  // 地理位置
+  if (country_code) {
+    whereConditions.push(`country_code = '${country_code}'`);
+  }
+
+  if (city) {
+    whereConditions.push(`city = '${city}'`);
+  }
+
+  // 设备类型
+  if (device_type) {
+    whereConditions.push(`device_type = '${device_type}'`);
+  }
+
+  if (is_mobile !== null) {
+    whereConditions.push(`is_mobile = ${is_mobile ? 1 : 0}`);
+  }
+
+  if (is_bot !== null) {
+    whereConditions.push(`is_bot = ${is_bot ? 1 : 0}`);
+  }
+
+  // 关键词搜索
+  if (keyword) {
+    whereConditions.push(
+      `(url LIKE '%${keyword}%' OR error_message LIKE '%${keyword}%' OR user_agent LIKE '%${keyword}%')`
+    );
+  }
+
+  const whereClause =
+    whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
+
+  const query = `
+    SELECT *
+    FROM ${clickhouseConfig.database}.api_request_logs
+    ${whereClause}
+    ORDER BY ${sort_by} ${sort_order}
+    LIMIT ${limit}
+    OFFSET ${offset}
+  `;
+
+  try {
+    const result = await clickhouseClient.query({
+      query: query,
+      format: "JSONEachRow",
+    });
+
+    const data = (await result.json()) as ApiRequestLogData[];
+    return data;
+  } catch (error) {
+    console.error("❌ 查询API请求日志失败:", (error as Error).message);
+    throw error;
+  }
+};
+
+/**
+ * 获取API请求日志统计信息
+ */
+export const getApiRequestLogStats = async (
+  timeRange: string = "24h",
+  groupBy: string = "hour"
+): Promise<ApiRequestLogStats[]> => {
+  if (!clickhouseClient) {
+    throw new Error("ClickHouse客户端未初始化");
+  }
+
+  // 使用DateTime工具类获取时间条件
+  const timeCondition = DateTime.getClickHouseTimeCondition(timeRange);
+
+  let timeGroupBy = "";
+  switch (groupBy) {
+    case "hour":
+      timeGroupBy =
+        "toStartOfHour(timestamp) as timestamp, toHour(timestamp) as hour";
+      break;
+    case "day":
+      timeGroupBy =
+        "toStartOfDay(timestamp) as timestamp, toDate(timestamp) as date";
+      break;
+    case "minute":
+      timeGroupBy = "toStartOfMinute(timestamp) as timestamp";
+      break;
+    default:
+      timeGroupBy =
+        "toStartOfHour(timestamp) as timestamp, toHour(timestamp) as hour";
+  }
+
+  const query = `
+    SELECT 
+      ${timeGroupBy},
+      
+      -- 基础指标
+      count() as total_requests,
+      uniq(user_id) as unique_users,
+      uniq(ip_address) as unique_ips,
+      
+      -- 状态码分布
+      countIf(status_code >= 200 AND status_code < 300) as success_count,
+      countIf(status_code >= 300 AND status_code < 400) as redirect_count,
+      countIf(status_code >= 400 AND status_code < 500) as client_error_count,
+      countIf(status_code >= 500) as server_error_count,
+      
+      -- 性能指标
+      avg(response_time) as avg_response_time,
+      quantile(0.5)(response_time) as p50_response_time,
+      quantile(0.9)(response_time) as p90_response_time,
+      quantile(0.95)(response_time) as p95_response_time,
+      quantile(0.99)(response_time) as p99_response_time,
+      
+      -- 流量指标
+      sum(response_size) as total_bytes_sent,
+      sum(body_size) as total_bytes_received,
+      
+      -- 错误率
+      (countIf(status_code >= 400) * 100.0 / count()) as error_rate,
+      
+      -- 缓存命中率
+      avg(cache_hit_ratio) as cache_hit_rate,
+      
+      -- 服务信息
+      any(service_name) as service_name,
+      any(environment) as environment
+      
+    FROM ${clickhouseConfig.database}.api_request_logs
+    WHERE ${timeCondition}
+    GROUP BY ${timeGroupBy.split(" as ")[0]}
+    ORDER BY timestamp DESC
+  `;
+
+  try {
+    const result = await clickhouseClient.query({
+      query: query,
+      format: "JSONEachRow",
+    });
+
+    const data = (await result.json()) as ApiRequestLogStats[];
+    return data;
+  } catch (error) {
+    console.error("❌ 获取API请求日志统计失败:", (error as Error).message);
+    throw error;
+  }
+};
+
+/**
+ * 获取热门端点统计
+ */
+export const getTopEndpoints = async (
+  timeRange: string = "24h",
+  limit: number = 10
+): Promise<
+  Array<{ endpoint: string; count: number; avg_response_time: number }>
+> => {
+  if (!clickhouseClient) {
+    throw new Error("ClickHouse客户端未初始化");
+  }
+
+  const timeCondition = DateTime.getClickHouseTimeCondition(timeRange);
+
+  const query = `
+    SELECT 
+      endpoint,
+      count() as count,
+      avg(response_time) as avg_response_time
+    FROM ${clickhouseConfig.database}.api_request_logs
+    WHERE ${timeCondition} AND endpoint != ''
+    GROUP BY endpoint
+    ORDER BY count DESC
+    LIMIT ${limit}
+  `;
+
+  try {
+    const result = await clickhouseClient.query({
+      query: query,
+      format: "JSONEachRow",
+    });
+
+    const data = (await result.json()) as Array<{
+      endpoint: string;
+      count: number;
+      avg_response_time: number;
+    }>;
+    return data;
+  } catch (error) {
+    console.error("❌ 获取热门端点统计失败:", (error as Error).message);
+    throw error;
+  }
+};
+
+/**
+ * 获取错误统计
+ */
+export const getErrorStats = async (
+  timeRange: string = "24h",
+  limit: number = 10
+): Promise<
+  Array<{ error_code: string; error_message: string; count: number }>
+> => {
+  if (!clickhouseClient) {
+    throw new Error("ClickHouse客户端未初始化");
+  }
+
+  const timeCondition = DateTime.getClickHouseTimeCondition(timeRange);
+
+  const query = `
+    SELECT 
+      error_code,
+      error_message,
+      count() as count
+    FROM ${clickhouseConfig.database}.api_request_logs
+    WHERE ${timeCondition} AND (status_code >= 400 OR error_code != '')
+    GROUP BY error_code, error_message
+    ORDER BY count DESC
+    LIMIT ${limit}
+  `;
+
+  try {
+    const result = await clickhouseClient.query({
+      query: query,
+      format: "JSONEachRow",
+    });
+
+    const data = (await result.json()) as Array<{
+      error_code: string;
+      error_message: string;
+      count: number;
+    }>;
+    return data;
+  } catch (error) {
+    console.error("❌ 获取错误统计失败:", (error as Error).message);
+    throw error;
+  }
+};
