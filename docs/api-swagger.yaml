@@ -75,6 +75,11 @@ components:
           enum: [debug, info, warn, error]
           default: info
           description: 日志级别
+        log_type:
+          type: string
+          default: application
+          description: 日志类型（自定义字符串，用于分类和筛选）
+          example: "user_behavior"
         message:
           type: string
           description: 日志消息
@@ -84,42 +89,30 @@ components:
           default: unknown
           description: 服务名称
           example: "auth-service"
-        host:
+        service_name:
           type: string
-          description: 主机名
+          description: 服务实例名称
+          example: "auth-service-01"
+        service_ip:
+          type: string
+          description: 服务IP地址
+          example: "192.168.1.100"
+        appid:
+          type: string
+          description: 应用ID
+          example: "app_123456"
+        enterprise_id:
+          type: string
+          description: 企业ID
+          example: "ent_789012"
         user_id:
           type: string
           description: 用户ID
-        session_id:
-          type: string
-          description: 会话ID
-        request_id:
-          type: string
-          description: 请求ID
-        ip:
-          type: string
-          description: IP地址
-        user_agent:
-          type: string
-          description: 用户代理
-        url:
-          type: string
-          description: 请求URL
-        method:
-          type: string
-          description: HTTP方法
-        status_code:
-          type: integer
-          description: HTTP状态码
-        response_time:
-          type: integer
-          description: 响应时间(ms)
-        error_stack:
-          type: string
-          description: 错误堆栈
+          example: "user_345678"
         extra_data:
           type: object
           description: 额外数据
+          example: { "action": "login", "duration": 1200 }
         timestamp:
           type: string
           description: 时间戳 (YYYY-MM-DD HH:mm:ss 或 ISO 8601)
@@ -143,9 +136,33 @@ components:
           type: string
           enum: [debug, info, warn, error]
           description: 日志级别过滤
+        log_type:
+          type: string
+          description: 日志类型过滤（自定义字符串）
+          example: "user_behavior"
         service:
           type: string
           description: 服务名过滤
+        service_name:
+          type: string
+          description: 服务实例名称过滤
+          example: "auth-service-01"
+        service_ip:
+          type: string
+          description: 服务IP地址过滤
+          example: "192.168.1.100"
+        appid:
+          type: string
+          description: 应用ID过滤
+          example: "app_123456"
+        enterprise_id:
+          type: string
+          description: 企业ID过滤
+          example: "ent_789012"
+        user_id:
+          type: string
+          description: 用户ID过滤
+          example: "user_345678"
         startTime:
           type: string
           description: 开始时间 (YYYY-MM-DD HH:mm:ss)
@@ -295,14 +312,40 @@ paths:
                 value:
                   limit: 100
                   level: "error"
-                  service: "auth-service"
+                  log_type: "payment_error"
+                  service: "payment-service"
+                  service_name: "payment-service-01"
+                  enterprise_id: "ent_789012"
                   startTime: "2025-12-11 10:00:00"
                   endTime: "2025-12-11 18:00:00"
               search:
                 summary: 关键词搜索
                 value:
                   keyword: "登录"
+                  user_id: "user_345678"
+                  appid: "app_123456"
                   limit: 20
+              log_type_filter:
+                summary: 按日志类型过滤
+                value:
+                  limit: 50
+                  log_type: "user_behavior_tracking"
+                  enterprise_id: "ent_789012"
+                  startTime: "2025-12-11 00:00:00"
+                  endTime: "2025-12-11 23:59:59"
+              advanced:
+                summary: 高级查询
+                value:
+                  limit: 100
+                  service_name: "payment-service-02"
+                  service_ip: "192.168.1.102"
+                  appid: "app_123456"
+                  enterprise_id: "ent_789012"
+                  user_id: "user_345678"
+                  level: "warn"
+                  log_type: "suspicious_activity"
+                  startTime: "2025-12-11 08:00:00"
+                  endTime: "2025-12-11 20:00:00"
       responses:
         '200':
           description: 成功获取日志列表
@@ -352,23 +395,52 @@ paths:
             schema:
               $ref: '#/components/schemas/LogData'
             examples:
-              info_log:
-                summary: 信息日志
+              user_behavior_log:
+                summary: 用户行为日志
                 value:
                   level: "info"
+                  log_type: "user_behavior"
                   message: "用户登录成功"
                   service: "auth-service"
+                  service_name: "auth-service-01"
+                  service_ip: "192.168.1.100"
+                  appid: "app_123456"
+                  enterprise_id: "ent_789012"
                   user_id: "user123"
                   extra_data:
                     action: "login"
                     duration: 1200
-              error_log:
-                summary: 错误日志
+              database_error:
+                summary: 数据库错误
                 value:
                   level: "error"
+                  log_type: "db_connection_error"
                   message: "数据库连接失败"
                   service: "database-service"
-                  error_stack: "Error: Connection timeout\n  at Database.connect..."
+                  service_name: "db-service-02"
+                  service_ip: "192.168.1.101"
+                  appid: "app_123456"
+                  enterprise_id: "ent_789012"
+                  extra_data:
+                    error_code: "DB_TIMEOUT"
+                    connection_pool: "main"
+              admin_audit:
+                summary: 管理员审计
+                value:
+                  level: "info"
+                  log_type: "admin_audit"
+                  message: "用户权限变更"
+                  service: "admin-service"
+                  service_name: "admin-service-01"
+                  service_ip: "192.168.1.102"
+                  appid: "app_123456"
+                  enterprise_id: "ent_789012"
+                  user_id: "admin123"
+                  extra_data:
+                    action: "permission_change"
+                    target_user: "user456"
+                    old_role: "user"
+                    new_role: "admin"
       responses:
         '200':
           description: 日志创建成功
@@ -442,16 +514,28 @@ paths:
             example:
               logs:
                 - level: "info"
+                  log_type: "user_login"
                   message: "用户登录"
                   service: "auth-service"
+                  service_name: "auth-service-01"
+                  appid: "app_123456"
+                  enterprise_id: "ent_789012"
                   user_id: "user123"
                 - level: "info"
+                  log_type: "data_access"
                   message: "获取用户信息"
                   service: "user-service"
+                  service_name: "user-service-01"
+                  appid: "app_123456"
+                  enterprise_id: "ent_789012"
                   user_id: "user123"
                 - level: "warn"
+                  log_type: "rate_limit"
                   message: "请求频率过高"
                   service: "rate-limiter"
+                  service_name: "rate-limiter-01"
+                  appid: "app_123456"
+                  enterprise_id: "ent_789012"
                   user_id: "user123"
       responses:
         '200':

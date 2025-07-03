@@ -112,26 +112,23 @@ const createLogTable = async (): Promise<void> => {
       id UUID DEFAULT generateUUIDv4(),
       timestamp DateTime64(3) DEFAULT now64(),
       level String,
+      log_type String DEFAULT 'application',
       message String,
       service String DEFAULT '',
-      host String DEFAULT '',
+      service_name String DEFAULT '',
+      service_ip String DEFAULT '',
+      appid String DEFAULT '',
+      enterprise_id String DEFAULT '',
       user_id String DEFAULT '',
-      session_id String DEFAULT '',
-      request_id String DEFAULT '',
-      ip String DEFAULT '',
-      user_agent String DEFAULT '',
-      url String DEFAULT '',
-      method String DEFAULT '',
-      status_code UInt16 DEFAULT 0,
-      response_time UInt32 DEFAULT 0,
-      error_stack String DEFAULT '',
       extra_data String DEFAULT '',
       created_date Date DEFAULT today()
     ) ENGINE = MergeTree()
-    PARTITION BY toYYYYMM(timestamp)
-    ORDER BY (timestamp, level, service)
+    PARTITION BY (toYYYYMM(timestamp), enterprise_id)
+    ORDER BY (timestamp, log_type, level, service_name, enterprise_id)
     TTL toDateTime(timestamp) + INTERVAL 90 DAY
-    SETTINGS index_granularity = 8192
+    SETTINGS index_granularity = 8192,
+             index_granularity_bytes = 10485760,
+             merge_with_ttl_timeout = 3600
   `;
 
   try {
@@ -304,7 +301,13 @@ export const queryLogs = async (
     limit = 100,
     offset = 0,
     level = null,
+    log_type = null,
     service = null,
+    service_name = null,
+    service_ip = null,
+    appid = null,
+    enterprise_id = null,
+    user_id = null,
     startTime = null,
     endTime = null,
     keyword = null,
@@ -316,8 +319,32 @@ export const queryLogs = async (
     whereConditions.push(`level = '${level}'`);
   }
 
+  if (log_type) {
+    whereConditions.push(`log_type = '${log_type}'`);
+  }
+
   if (service) {
     whereConditions.push(`service = '${service}'`);
+  }
+
+  if (service_name) {
+    whereConditions.push(`service_name = '${service_name}'`);
+  }
+
+  if (service_ip) {
+    whereConditions.push(`service_ip = '${service_ip}'`);
+  }
+
+  if (appid) {
+    whereConditions.push(`appid = '${appid}'`);
+  }
+
+  if (enterprise_id) {
+    whereConditions.push(`enterprise_id = '${enterprise_id}'`);
+  }
+
+  if (user_id) {
+    whereConditions.push(`user_id = '${user_id}'`);
   }
 
   if (startTime) {
