@@ -10,12 +10,19 @@ import {
   getSystemHealthReport,
 } from "../controllers/logController";
 import {
+  createApiRequestLog,
+  getApiRequestLogs,
+  getApiRequestLogStatistics,
+  getTopEndpointsStats,
+  getApiErrorStats,
+} from "../controllers/apiRequestLogController";
+import {
   validateTimeRange,
   validateDateTime,
   addRequestTimestamp,
 } from "../middleware/timeValidation";
 
-const router = Router();
+const router: Router = Router();
 
 // 应用时间戳中间件到所有路由
 router.use(addRequestTimestamp);
@@ -25,6 +32,21 @@ router.post("/query", validateDateTime, getLogs);
 
 // 创建单条日志
 router.post("/create", createLog);
+
+// 创建 API 请求日志
+router.post("/api-request", createApiRequestLog);
+
+// 查询 API 请求日志
+router.post("/api-request/query", getApiRequestLogs);
+
+// API 请求日志统计
+router.post("/api-request/stats", getApiRequestLogStatistics);
+
+// 热门端点统计
+router.post("/api-request/endpoints/top", getTopEndpointsStats);
+
+// API 错误统计
+router.post("/api-request/errors", getApiErrorStats);
 
 // 批量创建日志
 router.post("/batch", createLogsBatch);

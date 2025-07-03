@@ -560,39 +560,6 @@ export const insertApiRequestLog = async (
         typeof logData.response_headers === "string"
           ? logData.response_headers
           : JSON.stringify(logData.response_headers || {}),
-      business_metrics:
-        typeof logData.business_metrics === "string"
-          ? logData.business_metrics
-          : JSON.stringify(logData.business_metrics || {}),
-      custom_fields:
-        typeof logData.custom_fields === "string"
-          ? logData.custom_fields
-          : JSON.stringify(logData.custom_fields || {}),
-      // 转换布尔值为数字
-      is_bot:
-        typeof logData.is_bot === "boolean"
-          ? logData.is_bot
-            ? 1
-            : 0
-          : logData.is_bot || 0,
-      is_mobile:
-        typeof logData.is_mobile === "boolean"
-          ? logData.is_mobile
-            ? 1
-            : 0
-          : logData.is_mobile || 0,
-      is_crawler:
-        typeof logData.is_crawler === "boolean"
-          ? logData.is_crawler
-            ? 1
-            : 0
-          : logData.is_crawler || 0,
-      is_suspicious:
-        typeof logData.is_suspicious === "boolean"
-          ? logData.is_suspicious
-            ? 1
-            : 0
-          : logData.is_suspicious || 0,
       // 转换时间戳为 ClickHouse 兼容格式
       timestamp: DateTime.toClickHouseFormat(logData.timestamp),
     };
@@ -653,27 +620,21 @@ export const queryApiRequestLogs = async (
     method = null,
     status_code = null,
     service_name = null,
-    environment = null,
+    service_type = null,
+    appid = null,
+    app_name = null,
+    enterprise_id = null,
+    enterprise_name = null,
     user_id = null,
-    session_id = null,
     ip_address = null,
-    endpoint = null,
-    api_version = null,
+    real_ip = null,
     min_response_time = null,
     max_response_time = null,
     has_error = null,
-    error_type = null,
-    trace_id = null,
-    tenant_id = null,
-    organization_id = null,
+    error_code = null,
     keyword = null,
     sort_by = "timestamp",
     sort_order = "DESC",
-    country_code = null,
-    city = null,
-    device_type = null,
-    is_mobile = null,
-    is_bot = null,
   } = options;
 
   const whereConditions: string[] = [];
@@ -700,8 +661,25 @@ export const queryApiRequestLogs = async (
     whereConditions.push(`service_name = '${service_name}'`);
   }
 
-  if (environment) {
-    whereConditions.push(`environment = '${environment}'`);
+  if (service_type) {
+    whereConditions.push(`service_type = '${service_type}'`);
+  }
+
+  // 应用和企业过滤
+  if (appid) {
+    whereConditions.push(`appid = '${appid}'`);
+  }
+
+  if (app_name) {
+    whereConditions.push(`app_name = '${app_name}'`);
+  }
+
+  if (enterprise_id) {
+    whereConditions.push(`enterprise_id = '${enterprise_id}'`);
+  }
+
+  if (enterprise_name) {
+    whereConditions.push(`enterprise_name = '${enterprise_name}'`);
   }
 
   // 用户和会话过滤
@@ -709,21 +687,12 @@ export const queryApiRequestLogs = async (
     whereConditions.push(`user_id = '${user_id}'`);
   }
 
-  if (session_id) {
-    whereConditions.push(`session_id = '${session_id}'`);
-  }
-
   if (ip_address) {
     whereConditions.push(`ip_address = '${ip_address}'`);
   }
 
-  // API相关过滤
-  if (endpoint) {
-    whereConditions.push(`endpoint = '${endpoint}'`);
-  }
-
-  if (api_version) {
-    whereConditions.push(`api_version = '${api_version}'`);
+  if (real_ip) {
+    whereConditions.push(`real_ip = '${real_ip}'`);
   }
 
   // 性能过滤
@@ -744,44 +713,8 @@ export const queryApiRequestLogs = async (
     }
   }
 
-  if (error_type) {
-    whereConditions.push(`error_type = '${error_type}'`);
-  }
-
-  // 追踪相关
-  if (trace_id) {
-    whereConditions.push(`trace_id = '${trace_id}'`);
-  }
-
-  // 业务相关
-  if (tenant_id) {
-    whereConditions.push(`tenant_id = '${tenant_id}'`);
-  }
-
-  if (organization_id) {
-    whereConditions.push(`organization_id = '${organization_id}'`);
-  }
-
-  // 地理位置
-  if (country_code) {
-    whereConditions.push(`country_code = '${country_code}'`);
-  }
-
-  if (city) {
-    whereConditions.push(`city = '${city}'`);
-  }
-
-  // 设备类型
-  if (device_type) {
-    whereConditions.push(`device_type = '${device_type}'`);
-  }
-
-  if (is_mobile !== null) {
-    whereConditions.push(`is_mobile = ${is_mobile ? 1 : 0}`);
-  }
-
-  if (is_bot !== null) {
-    whereConditions.push(`is_bot = ${is_bot ? 1 : 0}`);
+  if (error_code) {
+    whereConditions.push(`error_code = '${error_code}'`);
   }
 
   // 关键词搜索
@@ -878,12 +811,8 @@ export const getApiRequestLogStats = async (
       -- 错误率
       (countIf(status_code >= 400) * 100.0 / count()) as error_rate,
       
-      -- 缓存命中率
-      avg(cache_hit_ratio) as cache_hit_rate,
-      
       -- 服务信息
-      any(service_name) as service_name,
-      any(environment) as environment
+      any(service_name) as service_name
       
     FROM ${clickhouseConfig.database}.api_request_logs
     WHERE ${timeCondition}
@@ -922,12 +851,12 @@ export const getTopEndpoints = async (
 
   const query = `
     SELECT 
-      endpoint,
+      path as endpoint,
       count() as count,
       avg(response_time) as avg_response_time
     FROM ${clickhouseConfig.database}.api_request_logs
-    WHERE ${timeCondition} AND endpoint != ''
-    GROUP BY endpoint
+    WHERE ${timeCondition} AND path != ''
+    GROUP BY path
     ORDER BY count DESC
     LIMIT ${limit}
   `;

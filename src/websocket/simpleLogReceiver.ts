@@ -1,6 +1,6 @@
-import WebSocket from 'ws';
-import { insertLog, insertApiRequestLog } from '../config/database';
-import { LogData, ApiRequestLogData } from '../types';
+import WebSocket from "ws";
+import { insertLog, insertApiRequestLog } from "../config/database";
+import { LogData, ApiRequestLogData } from "../types";
 
 /**
  * 简化的日志接收器客户端
@@ -12,7 +12,7 @@ export class SimpleLogReceiver {
   private serviceName: string;
   private webUrl: string;
   private heartbeatInterval: NodeJS.Timeout | null = null;
-  
+
   // 统计信息
   private stats = {
     totalReceived: 0,
@@ -22,7 +22,10 @@ export class SimpleLogReceiver {
     connectedAt: null as Date | null,
   };
 
-  constructor(serviceId: string = 'log-receiver-001', serviceName: string = 'ClickHouse日志服务') {
+  constructor(
+    serviceId: string = "log-receiver-001",
+    serviceName: string = "ClickHouse日志服务"
+  ) {
     this.serviceId = serviceId;
     this.serviceName = serviceName;
     this.webUrl = `http://localhost:${process.env.PORT || 3000}`;
@@ -36,36 +39,36 @@ export class SimpleLogReceiver {
 
     this.ws = new WebSocket(wsUrl);
 
-    this.ws.on('open', () => {
-      console.log('✅ WebSocket连接已建立');
+    this.ws.on("open", () => {
+      console.log("✅ WebSocket连接已建立");
       this.stats.connectedAt = new Date();
       this.sendConnectMessage();
       this.startHeartbeat();
     });
 
-    this.ws.on('message', (data: Buffer) => {
+    this.ws.on("message", (data: Buffer) => {
       try {
         const message = JSON.parse(data.toString());
         this.handleMessage(message);
       } catch (error) {
-        console.error('❌ 解析消息失败:', error);
+        console.error("❌ 解析消息失败:", error);
         this.stats.totalErrors++;
       }
     });
 
-    this.ws.on('close', (code: number, reason: Buffer) => {
+    this.ws.on("close", (code: number, reason: Buffer) => {
       console.log(`⚠️ WebSocket连接已关闭: ${code} - ${reason.toString()}`);
       this.stopHeartbeat();
-      
+
       // 5秒后尝试重连
       setTimeout(() => {
-        console.log('🔄 尝试重新连接...');
+        console.log("🔄 尝试重新连接...");
         this.connect(wsUrl);
       }, 5000);
     });
 
-    this.ws.on('error', (error) => {
-      console.error('❌ WebSocket错误:', error);
+    this.ws.on("error", (error) => {
+      console.error("❌ WebSocket错误:", error);
       this.stats.totalErrors++;
     });
   }
@@ -76,7 +79,7 @@ export class SimpleLogReceiver {
   private sendConnectMessage(): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       const message = {
-        type: 'connect',
+        type: "connect",
         data: {
           serviceId: this.serviceId,
           serviceName: this.serviceName,
@@ -94,30 +97,30 @@ export class SimpleLogReceiver {
   private async handleMessage(message: any): Promise<void> {
     this.stats.totalReceived++;
     this.stats.lastReceivedAt = new Date();
-    
+
     console.log(`📥 接收到消息: ${message.type}`);
 
     try {
       switch (message.type) {
-        case 'connect':
+        case "connect":
           this.handleConnectResponse(message);
           break;
-        case 'log_store':
+        case "log_store":
           await this.handleLogStore(message);
           break;
-        case 'log_query':
+        case "log_query":
           await this.handleLogQuery(message);
           break;
-        case 'heartbeat':
+        case "heartbeat":
           // 心跳响应，不需要特殊处理
           break;
         default:
           console.log(`⚠️ 未知消息类型: ${message.type}`);
       }
     } catch (error) {
-      console.error('❌ 处理消息失败:', error);
+      console.error("❌ 处理消息失败:", error);
       this.stats.totalErrors++;
-      
+
       // 发送错误响应
       if (message.requestId) {
         this.sendErrorResponse(message.requestId, error);
@@ -129,14 +132,16 @@ export class SimpleLogReceiver {
    * 处理连接响应
    */
   private handleConnectResponse(message: any): void {
-    console.log('✅ 连接确认:', message.data);
+    console.log("✅ 连接确认:", message.data);
   }
 
   /**
    * 处理日志存储请求
    */
   private async handleLogStore(message: any): Promise<void> {
-    console.log(`📦 处理日志存储请求，日志数量: ${message.data.logs?.length || 0}`);
+    console.log(
+      `📦 处理日志存储请求，日志数量: ${message.data.logs?.length || 0}`
+    );
 
     try {
       const logs = message.data.logs || [];
@@ -152,7 +157,7 @@ export class SimpleLogReceiver {
           }
           storedCount++;
         } catch (error) {
-          console.error('❌ 存储单个日志失败:', error);
+          console.error("❌ 存储单个日志失败:", error);
           this.stats.totalErrors++;
         }
       }
@@ -161,23 +166,22 @@ export class SimpleLogReceiver {
 
       // 发送成功响应
       const response = {
-        type: 'response',
+        type: "response",
         requestId: message.requestId,
         data: {
           success: true,
           storedCount: storedCount,
           totalLogs: logs.length,
-          message: '日志存储成功',
+          message: "日志存储成功",
         },
       };
 
       this.sendResponse(response);
       console.log(`✅ 成功存储 ${storedCount}/${logs.length} 条日志`);
-
     } catch (error) {
-      console.error('❌ 批量存储日志失败:', error);
+      console.error("❌ 批量存储日志失败:", error);
       this.stats.totalErrors++;
-      
+
       if (message.requestId) {
         this.sendErrorResponse(message.requestId, error);
       }
@@ -188,28 +192,27 @@ export class SimpleLogReceiver {
    * 处理日志查询请求
    */
   private async handleLogQuery(message: any): Promise<void> {
-    console.log('🔍 处理日志查询请求:', message.data);
+    console.log("🔍 处理日志查询请求:", message.data);
 
     try {
       // 这里可以根据查询参数调用相应的查询函数
       // 为了简化，暂时返回固定响应
       const response = {
-        type: 'response',
+        type: "response",
         requestId: message.requestId,
         data: {
           success: true,
           logs: [],
           total: 0,
-          message: '查询功能待实现，请使用HTTP API查询',
+          message: "查询功能待实现，请使用HTTP API查询",
         },
       };
 
       this.sendResponse(response);
-
     } catch (error) {
-      console.error('❌ 查询日志失败:', error);
+      console.error("❌ 查询日志失败:", error);
       this.stats.totalErrors++;
-      
+
       if (message.requestId) {
         this.sendErrorResponse(message.requestId, error);
       }
@@ -220,7 +223,7 @@ export class SimpleLogReceiver {
    * 判断是否为API请求日志
    */
   private isApiRequestLog(log: any): boolean {
-    return !!(log.method && log.url && log.status_code !== undefined);
+    return !!(log.method !== undefined);
   }
 
   /**
@@ -237,12 +240,12 @@ export class SimpleLogReceiver {
    */
   private sendErrorResponse(requestId: string, error: any): void {
     const response = {
-      type: 'response',
+      type: "response",
       requestId: requestId,
       data: {
         success: false,
         error: error instanceof Error ? error.message : String(error),
-        message: '处理请求时发生错误',
+        message: "处理请求时发生错误",
       },
     };
     this.sendResponse(response);
@@ -255,7 +258,7 @@ export class SimpleLogReceiver {
     this.heartbeatInterval = setInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         const heartbeat = {
-          type: 'heartbeat',
+          type: "heartbeat",
           data: { timestamp: Date.now() },
         };
         this.ws.send(JSON.stringify(heartbeat));
@@ -300,11 +303,11 @@ export class SimpleLogReceiver {
    * 断开连接
    */
   public disconnect(): void {
-    console.log('🔒 正在断开WebSocket连接...');
+    console.log("🔒 正在断开WebSocket连接...");
     this.stopHeartbeat();
     if (this.ws) {
-      this.ws.close(1000, 'Client disconnecting');
+      this.ws.close(1000, "Client disconnecting");
       this.ws = null;
     }
   }
-} 
+}

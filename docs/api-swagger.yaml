@@ -197,6 +197,174 @@ components:
           default: 24h
           description: 时间范围
 
+    ApiRequestLogData:
+      type: object
+      required:
+        - method
+        - url
+        - status_code
+        - response_time
+      properties:
+        # 基础字段
+        id:
+          type: string
+          description: 唯一标识符
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        timestamp:
+          type: string
+          description: 时间戳 (YYYY-MM-DD HH:mm:ss 或 ISO 8601)
+          example: "2025-12-11 14:30:25"
+        created_date:
+          type: string
+          description: 创建日期
+          example: "2025-12-11"
+        
+        # 请求基本信息（必填）
+        method:
+          type: string
+          description: HTTP 方法
+          example: "POST"
+        url:
+          type: string
+          description: 完整请求 URL
+          example: "https://api.example.com/v1/users/login"
+        host:
+          type: string
+          description: 主机名
+          example: "api.example.com"
+        path:
+          type: string
+          description: URL 路径
+          example: "/v1/users/login"
+        query_params:
+          type: string
+          description: 查询参数
+          example: "page=1&limit=10"
+        headers:
+          oneOf:
+            - type: string
+            - type: object
+          description: 请求头
+          example: '{"Content-Type": "application/json", "Authorization": "Bearer token123"}'
+        body:
+          type: string
+          description: 请求体
+          example: '{"username": "admin", "password": "***"}'
+        body_size:
+          type: integer
+          description: 请求体大小（字节）
+          example: 256
+        content_type:
+          type: string
+          description: 内容类型
+          example: "application/json"
+        
+        # 应用信息
+        appid:
+          type: string
+          description: 应用ID
+          example: "app_123456"
+        app_name:
+          type: string
+          description: 应用名称
+          example: "UserService"
+        
+        # 企业信息
+        enterprise_id:
+          type: string
+          description: 企业ID
+          example: "ent_789012"
+        enterprise_name:
+          type: string
+          description: 企业名称
+          example: "Example Corp"
+        
+        # 用户和会话信息
+        user_id:
+          type: string
+          description: 用户ID
+          example: "user_123456"
+        ip_address:
+          type: string
+          description: 客户端IP地址
+          example: "192.168.1.10"
+        real_ip:
+          type: string
+          description: 真实IP地址（代理后）
+          example: "203.0.113.10"
+        user_agent:
+          type: string
+          description: 用户代理
+          example: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        referer:
+          type: string
+          description: 来源页面
+          example: "https://example.com/home"
+        
+        # 响应信息（必填：status_code, response_time）
+        status_code:
+          type: integer
+          description: HTTP 状态码
+          example: 200
+        response_body:
+          type: string
+          description: 响应体
+          example: '{"code": 1, "message": "登录成功", "data": {"token": "jwt_token"}}'
+        response_size:
+          type: integer
+          description: 响应体大小（字节）
+          example: 1024
+        response_time:
+          type: integer
+          description: 响应时间（毫秒）
+          example: 150
+        response_headers:
+          oneOf:
+            - type: string
+            - type: object
+          description: 响应头
+          example: '{"Content-Type": "application/json"}'
+        
+        # 地理位置信息
+        country_info:
+          type: string
+          description: 国家信息
+          example: "China,CN,Beijing"
+        
+        # 设备和浏览器信息
+        browser:
+          type: string
+          description: 浏览器
+          example: "Chrome"
+        
+        # 服务器信息
+        service_type:
+          type: string
+          description: 服务类型
+          example: "API Gateway"
+        service_name:
+          type: string
+          description: 服务名称
+          example: "api-gateway"
+        service_ip:
+          type: string
+          description: 服务器IP地址
+          example: "10.0.1.100"
+        
+        # 错误和调试信息
+        error_code:
+          type: string
+          description: 错误代码
+          example: "AUTH_FAILED"
+        error_message:
+          type: string
+          description: 错误消息
+          example: "Invalid credentials"
+        error_trace:
+          type: string
+          description: 错误追踪信息
+          example: "AuthenticationError at line 123"
+
 paths:
   /:
     post:
@@ -498,6 +666,549 @@ paths:
               example:
                 code: 0
                 message: "日志存储失败，数据库和缓存都不可用"
+
+  /api/logs/api-request:
+    post:
+      tags:
+        - 日志管理
+      summary: 创建 API 请求日志
+      description: 提交 API 请求日志记录，用于记录和分析 API 调用详情
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiRequestLogData'
+            examples:
+              user_login:
+                summary: 用户登录请求
+                value:
+                  method: "POST"
+                  url: "https://api.example.com/v1/auth/login"
+                  path: "/v1/auth/login"
+                  status_code: 200
+                  response_time: 150.5
+                  user_id: "user_123456"
+                  ip_address: "192.168.1.10"
+                  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                  service_name: "auth-service"
+                  endpoint: "user_login"
+                  environment: "production"
+                  headers:
+                    Content-Type: "application/json"
+                    Authorization: "Bearer token123"
+                  body: '{"username":"admin","password":"***"}'
+                  response_body: '{"code":1,"message":"登录成功","data":{"token":"jwt_token"}}'
+              api_error:
+                summary: API 错误请求
+                value:
+                  method: "GET"
+                  url: "https://api.example.com/v1/users/999999"
+                  path: "/v1/users/999999"
+                  status_code: 404
+                  response_time: 25.3
+                  user_id: "user_789012"
+                  ip_address: "203.0.113.10"
+                  service_name: "user-service"
+                  endpoint: "get_user"
+                  environment: "production"
+                  error_code: "USER_NOT_FOUND"
+                  error_message: "用户不存在"
+                  trace_id: "trace-123456789"
+                  span_id: "span-987654321"
+              mobile_request:
+                summary: 移动端请求
+                value:
+                  method: "POST"
+                  url: "https://api.example.com/v1/orders"
+                  path: "/v1/orders"
+                  status_code: 201
+                  response_time: 320.8
+                  user_id: "user_345678"
+                  session_id: "sess_mobile_123"
+                  ip_address: "192.168.1.20"
+                  user_agent: "MyApp/1.2.0 (iOS 14.5; iPhone 12)"
+                  device_type: "mobile"
+                  device_brand: "Apple"
+                  device_model: "iPhone 12"
+                  os: "iOS"
+                  os_version: "14.5"
+                  service_name: "order-service"
+                  endpoint: "create_order"
+                  environment: "production"
+                  business_metrics:
+                    order_amount: 299.99
+                    payment_method: "alipay"
+                  tags: ["mobile", "order", "payment"]
+              trace_request:
+                summary: 分布式追踪请求
+                value:
+                  method: "PUT"
+                  url: "https://api.example.com/v1/products/12345"
+                  path: "/v1/products/12345"
+                  status_code: 200
+                  response_time: 89.2
+                  user_id: "admin_001"
+                  ip_address: "10.0.1.50"
+                  service_name: "product-service"
+                  service_version: "v2.1.0"
+                  instance_id: "product-service-pod-3"
+                  host: "k8s-node-02"
+                  environment: "production"
+                  deployment_region: "us-east-1"
+                  api_version: "v1"
+                  endpoint: "update_product"
+                  operation_id: "product.update"
+                  controller: "ProductController"
+                  action: "update"
+                  trace_id: "trace-abcd1234"
+                  span_id: "span-efgh5678"
+                  parent_span_id: "span-ijkl9012"
+                  tenant_id: "tenant_enterprise"
+                  organization_id: "org_retail_chain"
+                  request_id: "req_update_prod_999"
+      responses:
+        '200':
+          description: API 请求日志创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+              examples:
+                success:
+                  summary: 成功存储
+                  value:
+                    code: 1
+                    message: "API请求日志已成功存储"
+                    data:
+                      timestamp: "2025-12-11 14:30:25"
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              examples:
+                missing_required:
+                  summary: 缺少必填字段
+                  value:
+                    code: 0
+                    message: "method、url 和 status_code 不能为空"
+                invalid_timestamp:
+                  summary: 时间戳格式错误
+                  value:
+                    code: 0
+                    message: "时间戳格式无效，支持格式: YYYY-MM-DD HH:mm:ss 或 ISO 8601"
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              example:
+                code: 0
+                message: "API请求日志存储失败"
+
+  /api/logs/api-request/query:
+    post:
+      tags:
+        - 日志管理
+      summary: 查询 API 请求日志
+      description: 根据条件查询 API 请求日志记录
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                  default: 100
+                  minimum: 1
+                  maximum: 1000
+                  description: 限制数量
+                offset:
+                  type: integer
+                  default: 0
+                  minimum: 0
+                  description: 偏移量
+                startTime:
+                  type: string
+                  description: 开始时间 (YYYY-MM-DD HH:mm:ss)
+                  example: "2025-12-11 10:00:00"
+                endTime:
+                  type: string
+                  description: 结束时间 (YYYY-MM-DD HH:mm:ss)
+                  example: "2025-12-11 18:00:00"
+                method:
+                  type: string
+                  description: HTTP 方法过滤
+                  example: "POST"
+                status_code:
+                  type: integer
+                  description: HTTP 状态码过滤
+                  example: 200
+                service_name:
+                  type: string
+                  description: 服务名称过滤
+                  example: "auth-service"
+                service_type:
+                  type: string
+                  description: 服务类型过滤
+                  example: "API Gateway"
+                appid:
+                  type: string
+                  description: 应用ID过滤
+                  example: "app_123456"
+                app_name:
+                  type: string
+                  description: 应用名称过滤
+                  example: "UserService"
+                enterprise_id:
+                  type: string
+                  description: 企业ID过滤
+                  example: "ent_789012"
+                enterprise_name:
+                  type: string
+                  description: 企业名称过滤
+                  example: "Example Corp"
+                user_id:
+                  type: string
+                  description: 用户ID过滤
+                  example: "user_123456"
+                ip_address:
+                  type: string
+                  description: IP地址过滤
+                  example: "192.168.1.10"
+                real_ip:
+                  type: string
+                  description: 真实IP地址过滤
+                  example: "203.0.113.10"
+                min_response_time:
+                  type: integer
+                  description: 最小响应时间 (毫秒)
+                  example: 100
+                max_response_time:
+                  type: integer
+                  description: 最大响应时间 (毫秒)
+                  example: 1000
+                has_error:
+                  type: boolean
+                  description: 是否包含错误
+                error_code:
+                  type: string
+                  description: 错误代码过滤
+                  example: "AUTH_FAILED"
+                keyword:
+                  type: string
+                  description: 关键词搜索
+                sort_by:
+                  type: string
+                  enum: [timestamp, response_time, status_code]
+                  default: timestamp
+                  description: 排序字段
+                sort_order:
+                  type: string
+                  enum: [ASC, DESC]
+                  default: DESC
+                  description: 排序方向
+            examples:
+              basic_query:
+                summary: 基础查询
+                value:
+                  limit: 50
+                  startTime: "2025-12-11 10:00:00"
+                  endTime: "2025-12-11 18:00:00"
+              filter_by_service:
+                summary: 按服务过滤
+                value:
+                  service_name: "auth-service"
+                  service_type: "API Gateway"
+                  status_code: 200
+                  limit: 100
+              filter_by_app:
+                summary: 按应用过滤
+                value:
+                  appid: "app_123456"
+                  app_name: "UserService"
+                  enterprise_id: "ent_789012"
+                  limit: 100
+              slow_requests:
+                summary: 慢请求查询
+                value:
+                  min_response_time: 1000
+                  sort_by: "response_time"
+                  sort_order: "DESC"
+              error_requests:
+                summary: 错误请求查询
+                value:
+                  has_error: true
+                  error_code: "AUTH_FAILED"
+                  startTime: "2025-12-11 00:00:00"
+                  endTime: "2025-12-11 23:59:59"
+      responses:
+        '200':
+          description: API 请求日志查询成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          logs:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/ApiRequestLogData'
+                          count:
+                            type: integer
+                            example: 25
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+
+  /api/logs/api-request/stats:
+    post:
+      tags:
+        - 日志管理
+      summary: 获取 API 请求日志统计
+      description: 获取指定时间范围内的 API 请求统计信息
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                timeRange:
+                  type: string
+                  enum: [1h, 24h, 7d, 30d, 90d]
+                  default: 24h
+                  description: 时间范围
+                groupBy:
+                  type: string
+                  enum: [hour, day, week]
+                  default: hour
+                  description: 分组方式
+            examples:
+              hourly_stats:
+                summary: 按小时统计
+                value:
+                  timeRange: "24h"
+                  groupBy: "hour"
+              daily_stats:
+                summary: 按天统计
+                value:
+                  timeRange: "7d"
+                  groupBy: "day"
+      responses:
+        '200':
+          description: API 请求统计获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          stats:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                time_period:
+                                  type: string
+                                  example: "2025-12-11 14:00:00"
+                                total_requests:
+                                  type: integer
+                                  example: 1250
+                                avg_response_time:
+                                  type: number
+                                  example: 125.5
+                                error_rate:
+                                  type: number
+                                  example: 2.5
+                                status_2xx:
+                                  type: integer
+                                  example: 1200
+                                status_4xx:
+                                  type: integer
+                                  example: 30
+                                status_5xx:
+                                  type: integer
+                                  example: 20
+                          timeRange:
+                            type: string
+                            example: "24h"
+                          groupBy:
+                            type: string
+                            example: "hour"
+                          count:
+                            type: integer
+                            example: 24
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+
+  /api/logs/api-request/endpoints/top:
+    post:
+      tags:
+        - 日志管理
+      summary: 获取热门端点统计
+      description: 获取指定时间范围内访问量最高的端点统计
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                timeRange:
+                  type: string
+                  enum: [1h, 24h, 7d, 30d, 90d]
+                  default: 24h
+                  description: 时间范围
+                limit:
+                  type: integer
+                  default: 10
+                  minimum: 1
+                  maximum: 100
+                  description: 返回数量限制
+            examples:
+              top_10:
+                summary: 前10热门端点
+                value:
+                  timeRange: "24h"
+                  limit: 10
+              top_endpoints_week:
+                summary: 一周热门端点
+                value:
+                  timeRange: "7d"
+                  limit: 20
+      responses:
+        '200':
+          description: 热门端点统计获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          endpoints:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                endpoint:
+                                  type: string
+                                  example: "/v1/auth/login"
+                                count:
+                                  type: integer
+                                  example: 1250
+                                avg_response_time:
+                                  type: number
+                                  example: 125.5
+                          timeRange:
+                            type: string
+                            example: "24h"
+                          limit:
+                            type: integer
+                            example: 10
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+
+  /api/logs/api-request/errors:
+    post:
+      tags:
+        - 日志管理
+      summary: 获取 API 错误统计
+      description: 获取指定时间范围内的 API 错误统计信息
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                timeRange:
+                  type: string
+                  enum: [1h, 24h, 7d, 30d, 90d]
+                  default: 24h
+                  description: 时间范围
+                limit:
+                  type: integer
+                  default: 10
+                  minimum: 1
+                  maximum: 100
+                  description: 返回数量限制
+            examples:
+              recent_errors:
+                summary: 最近错误统计
+                value:
+                  timeRange: "24h"
+                  limit: 10
+              error_analysis:
+                summary: 错误分析
+                value:
+                  timeRange: "7d"
+                  limit: 20
+      responses:
+        '200':
+          description: API 错误统计获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          errors:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                error_code:
+                                  type: string
+                                  example: "USER_NOT_FOUND"
+                                error_message:
+                                  type: string
+                                  example: "用户不存在"
+                                count:
+                                  type: integer
+                                  example: 45
+                          timeRange:
+                            type: string
+                            example: "24h"
+                          limit:
+                            type: integer
+                            example: 10
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
 
   /api/logs/batch:
     post:
