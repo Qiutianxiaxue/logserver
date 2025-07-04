@@ -35,8 +35,8 @@ app.use(
           "'self'",
           "'unsafe-inline'", // 允许内联样式（Swagger UI需要）
         ],
-        imgSrc: ["'self'", "data:", "https:"], // 允许图片资源
-        fontSrc: ["'self'", "https:", "data:"], // 允许字体资源
+        imgSrc: ["'self'", "data:", "http:"], // 允许图片资源
+        fontSrc: ["'self'", "http:", "data:"], // 允许字体资源
         connectSrc: ["'self'"], // API连接
         objectSrc: ["'none'"], // 禁用object元素
         mediaSrc: ["'self'"], // 媒体资源
