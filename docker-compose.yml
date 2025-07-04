@@ -34,50 +34,6 @@ services:
     networks:
       - logserver-network
 
-  mysql:
-    image: mysql:8.0
-    container_name: logserver_mysql
-    restart: unless-stopped
-    # 仅内部使用，不暴露端口到宿主机
-    # ports:
-    #   - "23306:3306"
-    environment:
-      # MySQL root密码，生产环境请修改为强密码
-      - MYSQL_ROOT_PASSWORD=mysql_2024_secure
-      # 创建日志统计数据库
-      - MYSQL_DATABASE=log_statistics
-      # 创建专用用户
-      - MYSQL_USER=logservice
-      - MYSQL_PASSWORD=logservice_2024_secure
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - mysql_logs:/var/log/mysql
-    command:
-      [
-        "--default-authentication-plugin=mysql_native_password",
-        "--character-set-server=utf8mb4",
-        "--collation-server=utf8mb4_general_ci",
-        "--innodb-buffer-pool-size=256M",
-        "--max-connections=200",
-      ]
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "mysqladmin",
-          "ping",
-          "-h",
-          "localhost",
-          "-uroot",
-          "-pmysql_2024_secure",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    networks:
-      - logserver-network
-
   logserver:
     build: .
     container_name: logserver-service
@@ -86,8 +42,6 @@ services:
       - "${PORT:-13000}:13000"
     depends_on:
       clickhouse:
-        condition: service_healthy
-      mysql:
         condition: service_healthy
     env_file:
       - .env
@@ -99,14 +53,6 @@ services:
       - CLICKHOUSE_USERNAME=default
       # 密码需要与ClickHouse服务保持一致
       - CLICKHOUSE_PASSWORD=clickhouse_2024_secure
-
-      # MySQL连接配置
-      - MYSQL_HOST=logserver_mysql
-      - MYSQL_PORT=3306
-      - MYSQL_DATABASE=log_statistics
-      - MYSQL_USERNAME=logservice
-      # 密码需要与MySQL服务保持一致
-      - MYSQL_PASSWORD=logservice_2024_secure
     healthcheck:
       test:
         [
@@ -132,8 +78,4 @@ volumes:
   clickhouse_data:
     driver: local
   clickhouse_logs:
-    driver: local
-  mysql_data:
-    driver: local
-  mysql_logs:
     driver: local

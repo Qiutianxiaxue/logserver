@@ -33,42 +33,95 @@
     <script src="/docs/swagger-ui-assets/swagger-ui-standalone-preset.js"></script>
     <script>
       window.onload = function () {
-        // 直接加载YAML文件
-        const ui = SwaggerUIBundle({
-          url: "/docs/api-swagger.yaml",
-          dom_id: "#swagger-ui",
-          deepLinking: true,
-          presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
-          plugins: [SwaggerUIBundle.plugins.DownloadUrl],
-          layout: "StandaloneLayout",
-          tryItOutEnabled: true,
-          supportedSubmitMethods: ["get", "post", "put", "delete", "patch"],
-          docExpansion: "list",
-          defaultModelsExpandDepth: 2,
-          defaultModelExpandDepth: 2,
-          showExtensions: true,
-          showCommonExtensions: true,
-          onComplete: function () {
-            console.log("Swagger UI 已加载完成");
-          },
-          onFailure: function (error) {
-            console.error("Swagger UI 加载失败:", error);
-            // 显示错误信息
-            document.getElementById("swagger-ui").innerHTML =
-              '<div style="padding: 20px; color: red;">' +
-              "<h2>API 文档加载失败</h2>" +
-              "<p>无法加载 API 文档，请检查：</p>" +
-              "<ul>" +
-              "<li>服务器是否正常运行</li>" +
-              "<li>api-swagger.yaml 文件是否存在</li>" +
-              "<li>浏览器控制台是否有错误信息</li>" +
-              "</ul>" +
-              "<p>错误信息: " +
-              error +
-              "</p>" +
-              "</div>";
-          },
-        });
+        // 检查并修复协议问题
+        function getCorrectUrl(path) {
+          const protocol = window.location.protocol;
+          const host = window.location.host;
+          return protocol + "//" + host + path;
+        }
+
+        // 检查SwaggerUIBundle是否已加载
+        if (typeof SwaggerUIBundle === "undefined") {
+          console.error("SwaggerUIBundle 未定义，可能是资源加载失败");
+          document.getElementById("swagger-ui").innerHTML =
+            '<div style="padding: 20px; color: red; font-family: Arial, sans-serif;">' +
+            "<h2>🚫 API 文档加载失败</h2>" +
+            "<p><strong>原因：</strong> Swagger UI 资源文件加载失败</p>" +
+            "<p><strong>解决方案：</strong></p>" +
+            "<ol>" +
+            "<li>确保使用正确的协议访问（HTTP，不是HTTPS）</li>" +
+            "<li>尝试访问: <a href='http://" +
+            window.location.host +
+            "/docs/swagger-ui.html'>http://" +
+            window.location.host +
+            "/docs/swagger-ui.html</a></li>" +
+            "<li>检查服务器是否正常运行</li>" +
+            "<li>清除浏览器缓存后重试</li>" +
+            "</ol>" +
+            "<p><strong>当前访问地址：</strong> " +
+            window.location.href +
+            "</p>" +
+            "</div>";
+          return;
+        }
+
+        try {
+          // 直接加载YAML文件
+          const ui = SwaggerUIBundle({
+            url: getCorrectUrl("/docs/api-swagger.yaml"),
+            dom_id: "#swagger-ui",
+            deepLinking: true,
+            presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+            plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+            layout: "StandaloneLayout",
+            tryItOutEnabled: true,
+            supportedSubmitMethods: ["get", "post", "put", "delete", "patch"],
+            docExpansion: "list",
+            defaultModelsExpandDepth: 2,
+            defaultModelExpandDepth: 2,
+            showExtensions: true,
+            showCommonExtensions: true,
+            onComplete: function () {
+              console.log("✅ Swagger UI 已加载完成");
+              console.log(
+                "📍 文档地址: " + getCorrectUrl("/docs/api-swagger.yaml")
+              );
+            },
+            onFailure: function (error) {
+              console.error("❌ Swagger UI 加载失败:", error);
+              // 显示错误信息
+              document.getElementById("swagger-ui").innerHTML =
+                '<div style="padding: 20px; color: red; font-family: Arial, sans-serif;">' +
+                "<h2>📄 API 文档加载失败</h2>" +
+                "<p><strong>错误详情：</strong> " +
+                error +
+                "</p>" +
+                "<p><strong>请检查：</strong></p>" +
+                "<ul>" +
+                "<li>服务器是否正常运行</li>" +
+                "<li>api-swagger.yaml 文件是否存在</li>" +
+                "<li>网络连接是否正常</li>" +
+                "<li>浏览器控制台是否有更多错误信息</li>" +
+                "</ul>" +
+                "<p><strong>尝试直接访问：</strong> <a href='" +
+                getCorrectUrl("/docs/api-swagger.yaml") +
+                "' target='_blank'>" +
+                getCorrectUrl("/docs/api-swagger.yaml") +
+                "</a></p>" +
+                "</div>";
+            },
+          });
+        } catch (error) {
+          console.error("❌ 初始化 Swagger UI 时发生错误:", error);
+          document.getElementById("swagger-ui").innerHTML =
+            '<div style="padding: 20px; color: red; font-family: Arial, sans-serif;">' +
+            "<h2>🚨 初始化错误</h2>" +
+            "<p>Swagger UI 初始化失败: " +
+            error.message +
+            "</p>" +
+            "<p>请刷新页面重试，或联系系统管理员。</p>" +
+            "</div>";
+        }
       };
     </script>
   </body>

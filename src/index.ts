@@ -43,6 +43,9 @@ app.use(
         frameSrc: ["'none'"], // 禁用frame
       },
     },
+    crossOriginOpenerPolicy: false, // 禁用COOP策略避免协议问题
+    crossOriginResourcePolicy: false, // 禁用CORP策略
+    hsts: false, // 禁用HSTS避免强制HTTPS重定向
   })
 ); // 安全头部（为Swagger UI配置CSP）
 app.use(cors()); // 跨域支持
