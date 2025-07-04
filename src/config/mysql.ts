@@ -11,6 +11,14 @@ const mysqlConfig = {
   database: process.env.MYSQL_DATABASE || "logs",
   dialect: "mysql" as const,
   logging: false,
+  // 设置时区为上海时区
+  timezone: "+08:00",
+  dialectOptions: {
+    // MySQL驱动选项
+    timezone: "+08:00",
+    dateStrings: true,
+    typeCast: true,
+  },
   pool: {
     max: 10,
     min: 0,

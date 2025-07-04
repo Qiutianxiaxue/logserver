@@ -225,7 +225,9 @@ export class ApiStatistics
         sequelize,
         modelName: "ApiStatistics",
         tableName: "qc_api_statistics",
-        timestamps: false, // 我们使用自定义的 create_time 和 update_time
+        timestamps: true, // 启用时间戳功能以支持时区设置
+        createdAt: "create_time", // 映射到自定义字段名
+        updatedAt: "update_time", // 映射到自定义字段名
         comment: "API请求统计表",
         indexes: [
           {
@@ -271,11 +273,6 @@ export class ApiStatistics
             fields: ["stat_time", "stat_type", "host", "path"],
           },
         ],
-        hooks: {
-          beforeUpdate: (instance: ApiStatistics) => {
-            instance.update_time = new Date();
-          },
-        },
       }
     );
 
