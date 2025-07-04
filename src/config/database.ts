@@ -10,6 +10,7 @@ import {
   ApiRequestLogStats,
 } from "../types";
 import DateTime from "../utils/datetime";
+import { dbLogger } from "../utils/logger";
 
 // ClickHouse 配置
 const clickhouseConfig: ClickHouseConfig = {
@@ -47,8 +48,7 @@ export const initClickHouse = async (): Promise<ClickHouseClient | null> => {
     clickhouseClient = createClient(clickhouseConfig);
 
     // 测试连接
-    const result = await clickhouseClient.ping();
-    console.log("✅ ClickHouse连接成功:", result);
+    await clickhouseClient.ping();
 
     // 创建数据库（如果不存在）
     await clickhouseClient.command({
@@ -83,7 +83,6 @@ export const reconnectClickHouse = async (): Promise<boolean> => {
 
     // 测试连接
     await clickhouseClient.ping();
-    console.log("✅ ClickHouse重连成功");
 
     // 确保数据库和表存在
     await clickhouseClient.command({
@@ -139,7 +138,6 @@ const createLogTable = async (): Promise<void> => {
     await clickhouseClient.command({
       query: createTableQuery,
     });
-    console.log("✅ 日志表创建成功");
   } catch (error) {
     console.error("❌ 创建日志表失败:", (error as Error).message);
     throw error;
@@ -223,7 +221,6 @@ const createApiRequestLogTable = async (): Promise<void> => {
     await clickhouseClient.command({
       query: createTableQuery,
     });
-    console.log("✅ API请求日志表创建成功");
   } catch (error) {
     console.error("❌ 创建API请求日志表失败:", (error as Error).message);
     throw error;
@@ -269,22 +266,18 @@ export const insertLog = async (
     });
     return result as DatabaseInsertResult;
   } catch (error) {
-    console.error("❌ 插入日志失败:", (error as Error).message);
-    console.error("❌ 原始数据:", JSON.stringify(logData, null, 2));
-
-    // 尝试解析并输出处理后的数据
+    // 记录详细错误到日志系统（避免循环）
     try {
-      const debugData = {
-        ...logData,
-        extra_data:
-          typeof logData.extra_data === "string"
-            ? logData.extra_data
-            : JSON.stringify(logData.extra_data || {}),
-        timestamp: DateTime.toClickHouseFormat(logData.timestamp),
-      };
-      console.error("❌ 处理后数据:", JSON.stringify(debugData, null, 2));
-    } catch (debugError) {
-      console.error("❌ 数据调试输出失败:", debugError);
+      await dbLogger.error("ClickHouse日志插入失败", {
+        error: (error as Error).message,
+        logType: logData.log_type,
+        level: logData.level,
+        service: logData.service,
+        appid: logData.appid,
+        enterprise_id: logData.enterprise_id,
+      });
+    } catch {
+      // 静默处理logger错误，避免无限循环
     }
 
     throw error;
@@ -384,7 +377,10 @@ export const queryLogs = async (
     const data = (await result.json()) as LogData[];
     return data;
   } catch (error) {
-    console.error("❌ 查询日志失败:", (error as Error).message);
+    await dbLogger.error("查询日志失败", {
+      error: (error as Error).message,
+      options: JSON.stringify(options),
+    });
     throw error;
   }
 };
@@ -423,7 +419,10 @@ export const getLogStats = async (
     const data = (await result.json()) as LogStats[];
     return data;
   } catch (error) {
-    console.error("❌ 获取日志统计失败:", (error as Error).message);
+    await dbLogger.error("获取日志统计失败", {
+      error: (error as Error).message,
+      timeRange,
+    });
     throw error;
   }
 };
@@ -493,7 +492,6 @@ export const database = {
       // 1. 检查服务器连接
       await clickhouseClient.ping();
       details.serverPing = true;
-      console.log("✅ 服务器 ping 成功");
 
       // 2. 检查数据库访问权限
       await clickhouseClient.query({
@@ -501,7 +499,6 @@ export const database = {
         format: "JSONEachRow",
       });
       details.databaseAccess = true;
-      console.log("✅ 数据库访问成功");
 
       // 3. 检查日志表是否存在和可访问
       const tableCheckResult = await clickhouseClient.query({
@@ -512,7 +509,6 @@ export const database = {
       // 尝试读取结果以确保查询真的执行成功了
       await tableCheckResult.json();
       details.tableAccess = true;
-      console.log("✅ 日志表访问成功");
 
       return {
         success: true,
@@ -607,6 +603,21 @@ export const insertApiRequestLog = async (
   } catch (error) {
     console.error("❌ 插入API请求日志失败:", (error as Error).message);
     console.error("❌ 原始数据:", JSON.stringify(logData, null, 2));
+
+    // 记录详细错误到日志系统
+    try {
+      await dbLogger.error("ClickHouse API日志插入失败", {
+        error: (error as Error).message,
+        method: logData.method,
+        url: logData.url,
+        appid: logData.appid,
+        enterprise_id: logData.enterprise_id,
+        status_code: logData.status_code,
+      });
+    } catch {
+      // 静默处理logger错误
+    }
+
     throw error;
   }
 };
@@ -754,7 +765,10 @@ export const queryApiRequestLogs = async (
     const data = (await result.json()) as ApiRequestLogData[];
     return data;
   } catch (error) {
-    console.error("❌ 查询API请求日志失败:", (error as Error).message);
+    await dbLogger.error("查询API请求日志失败", {
+      error: (error as Error).message,
+      options: JSON.stringify(options),
+    });
     throw error;
   }
 };
@@ -838,7 +852,11 @@ export const getApiRequestLogStats = async (
     const data = (await result.json()) as ApiRequestLogStats[];
     return data;
   } catch (error) {
-    console.error("❌ 获取API请求日志统计失败:", (error as Error).message);
+    await dbLogger.error("获取API请求日志统计失败", {
+      error: (error as Error).message,
+      timeRange,
+      groupBy,
+    });
     throw error;
   }
 };
@@ -883,7 +901,11 @@ export const getTopEndpoints = async (
     }>;
     return data;
   } catch (error) {
-    console.error("❌ 获取热门端点统计失败:", (error as Error).message);
+    await dbLogger.error("获取热门端点统计失败", {
+      error: (error as Error).message,
+      timeRange,
+      limit,
+    });
     throw error;
   }
 };
@@ -928,7 +950,11 @@ export const getErrorStats = async (
     }>;
     return data;
   } catch (error) {
-    console.error("❌ 获取错误统计失败:", (error as Error).message);
+    await dbLogger.error("获取错误统计失败", {
+      error: (error as Error).message,
+      timeRange,
+      limit,
+    });
     throw error;
   }
 };

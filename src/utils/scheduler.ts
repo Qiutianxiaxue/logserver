@@ -4,6 +4,7 @@ import { apiStatisticsService } from "../services/apiStatisticsService";
 import { ApiStatType } from "../models/ApiStatistics";
 import * as cron from "node-cron";
 import dayjs from "dayjs";
+import { systemLogger } from "./logger";
 
 /**
  * 统计数据更新调度器
@@ -77,14 +78,14 @@ export class StatisticsScheduler {
 
         console.log("✅ 每小时综合统计更新完成");
       } catch (error) {
-        console.error("❌ 每小时综合统计更新失败:", error);
+        await systemLogger.error("每小时综合统计更新失败", { error });
       }
     });
 
     // 每天0点额外更新前一天的完整统计（确保数据完整性）
     const dailyCleanupTask = cron.schedule("0 0 * * *", async () => {
+      const yesterday = dayjs().subtract(1, "day");
       try {
-        const yesterday = dayjs().subtract(1, "day");
         console.log(`🔄 执行日统计清理任务: ${yesterday.format("YYYY-MM-DD")}`);
         await Promise.all([
           logStatisticsService.updateStatistics(
@@ -98,14 +99,17 @@ export class StatisticsScheduler {
         ]);
         console.log("✅ 日统计清理任务完成");
       } catch (error) {
-        console.error("❌ 日统计清理任务失败:", error);
+        await systemLogger.error("日统计清理任务失败", {
+          error,
+          date: yesterday.format("YYYY-MM-DD"),
+        });
       }
     });
 
     // 每周一0点额外更新上一周的完整统计（确保数据完整性）
     const weeklyCleanupTask = cron.schedule("0 0 * * 1", async () => {
+      const lastWeek = dayjs().subtract(1, "week");
       try {
-        const lastWeek = dayjs().subtract(1, "week");
         console.log(
           `🔄 执行周统计清理任务: ${lastWeek
             .startOf("week")
@@ -125,14 +129,17 @@ export class StatisticsScheduler {
         ]);
         console.log("✅ 周统计清理任务完成");
       } catch (error) {
-        console.error("❌ 周统计清理任务失败:", error);
+        await systemLogger.error("周统计清理任务失败", {
+          error,
+          week: lastWeek.format("YYYY-[W]WW"),
+        });
       }
     });
 
     // 每月1日0点额外更新上一月的完整统计（确保数据完整性）
     const monthlyCleanupTask = cron.schedule("0 0 1 * *", async () => {
+      const lastMonth = dayjs().subtract(1, "month");
       try {
-        const lastMonth = dayjs().subtract(1, "month");
         console.log(`🔄 执行月统计清理任务: ${lastMonth.format("YYYY-MM")}`);
         await Promise.all([
           logStatisticsService.updateStatistics(
@@ -146,7 +153,10 @@ export class StatisticsScheduler {
         ]);
         console.log("✅ 月统计清理任务完成");
       } catch (error) {
-        console.error("❌ 月统计清理任务失败:", error);
+        await systemLogger.error("月统计清理任务失败", {
+          error,
+          month: lastMonth.format("YYYY-MM"),
+        });
       }
     });
 
@@ -192,7 +202,7 @@ export class StatisticsScheduler {
       ]);
       console.log("✅ 初始统计数据更新完成");
     } catch (error) {
-      console.error("❌ 初始统计数据更新失败:", error);
+      await systemLogger.error("初始统计数据更新失败", { error });
     }
   }
 

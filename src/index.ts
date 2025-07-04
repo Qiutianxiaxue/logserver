@@ -1,6 +1,5 @@
 // 加载环境变量配置
-import dotenv from "dotenv";
-dotenv.config();
+import "dotenv/config";
 
 import express, { Request, Response, NextFunction, Application } from "express";
 import cors from "cors";
@@ -22,7 +21,6 @@ const LOG_LEVEL: string = process.env.LOG_LEVEL || "combined";
 const LOG_WEBSOCKET_URL: string =
   process.env.LOG_WEBSOCKET_URL || "ws://localhost:13001";
 
-console.log(process.env.NODE_ENV);
 // 中间件配置
 app.use(
   helmet({

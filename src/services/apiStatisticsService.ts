@@ -3,6 +3,7 @@ import dayjs from "dayjs";
 import weekOfYear from "dayjs/plugin/weekOfYear";
 import ApiStatistics, { ApiStatType } from "../models/ApiStatistics";
 import { clickhouseClient } from "../config/database";
+import { systemLogger } from "../utils/logger";
 
 // 启用周数插件
 dayjs.extend(weekOfYear);
@@ -61,13 +62,6 @@ export class ApiStatisticsService {
     const now = targetTime || new Date();
     const timeRange = this.getTimeRange(statType, now);
 
-    console.log(`🔄 开始更新API ${statType} 统计数据`);
-    console.log(
-      `📊 时间范围: ${timeRange.start.format(
-        "YYYY-MM-DD HH:mm:ss"
-      )} 至 ${timeRange.end.format("YYYY-MM-DD HH:mm:ss")}`
-    );
-
     try {
       // 从ClickHouse查询聚合数据
       const aggregatedData = await this.getAggregatedDataFromClickHouse(
@@ -76,7 +70,6 @@ export class ApiStatisticsService {
       );
 
       if (aggregatedData.length === 0) {
-        console.log(`📊 ${statType} 时间段内无API请求数据`);
         return;
       }
 
@@ -87,11 +80,14 @@ export class ApiStatisticsService {
         aggregatedData
       );
 
-      console.log(
-        `✅ API ${statType} 统计数据更新完成，处理了 ${aggregatedData.length} 条记录`
+      await systemLogger.info(
+        `API ${statType}统计数据更新完成，处理了 ${aggregatedData.length} 条记录`
       );
     } catch (error) {
-      console.error(`❌ 更新API ${statType} 统计数据失败:`, error);
+      await systemLogger.error(`更新API ${statType} 统计数据失败`, {
+        error,
+        statType,
+      });
       throw error;
     }
   }
@@ -172,7 +168,11 @@ export class ApiStatisticsService {
             : 0,
       }));
     } catch (error) {
-      console.error("❌ 从ClickHouse查询API聚合数据失败:", error);
+      await systemLogger.error("从ClickHouse查询API聚合数据失败", {
+        error,
+        startTime,
+        endTime,
+      });
       throw error;
     }
   }
@@ -247,22 +247,15 @@ export class ApiStatisticsService {
         if (existingRecord) {
           // 如果存在，则更新记录
           await existingRecord.update(updateData);
-          console.log(
-            `  更新: ${row.method} ${row.path} - ${row.request_count}请求`
-          );
         } else {
           // 如果不存在，则创建新记录
           await ApiStatistics.create({
             ...whereConditions,
             ...updateData,
           });
-          console.log(
-            `  创建: ${row.method} ${row.path} - ${row.request_count}请求`
-          );
         }
       } catch (error) {
-        console.error(`❌ 更新API统计记录失败:`, error);
-        console.error(`❌ 数据:`, row);
+        await systemLogger.error("更新API统计记录失败", { error, row });
         // 继续处理其他记录
       }
     }
@@ -447,7 +440,7 @@ export class ApiStatisticsService {
 
       return { data, total };
     } catch (error) {
-      console.error("查询API统计数据失败:", error);
+      await systemLogger.error("查询API统计数据失败", { error, options });
       throw error;
     }
   }
@@ -549,7 +542,7 @@ export class ApiStatisticsService {
 
       return { data, total };
     } catch (error) {
-      console.error("查询API聚合统计数据失败:", error);
+      await systemLogger.error("查询API聚合统计数据失败", { error, options });
       throw error;
     }
   }
@@ -564,7 +557,10 @@ export class ApiStatisticsService {
       try {
         await this.updateStatistics(statType, targetTime);
       } catch (error) {
-        console.error(`更新API ${statType}统计失败:`, error);
+        await systemLogger.error(`更新API ${statType}统计失败`, {
+          error,
+          statType,
+        });
         // 继续处理其他类型的统计
       }
     }

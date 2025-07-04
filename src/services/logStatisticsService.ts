@@ -3,6 +3,7 @@ import { getClient } from "../config/database";
 import { Op } from "sequelize";
 import dayjs from "dayjs";
 import weekOfYear from "dayjs/plugin/weekOfYear";
+import { systemLogger } from "../utils/logger";
 
 // 启用周数插件
 dayjs.extend(weekOfYear);
@@ -49,8 +50,6 @@ export class LogStatisticsService {
     const now = targetTime || new Date();
     const { startTime, endTime, statTime } = this.getTimeRange(statType, now);
 
-    console.log(`开始更新${statType}统计数据: ${startTime} - ${endTime}`);
-
     try {
       // 从ClickHouse查询统计数据
       const query = `
@@ -93,12 +92,10 @@ export class LogStatisticsService {
           appid: row.appid || "",
           enterprise_id: row.enterprise_id || "",
         };
-        console.log("-----------------------------", whereConditions);
 
         // 先查询是否已存在相同记录
         const existingRecord = await LogStatistics.findOne({
           where: whereConditions,
-          logging: console.log,
         });
 
         if (existingRecord) {
@@ -107,22 +104,23 @@ export class LogStatisticsService {
             count: row.count,
             update_time: new Date(),
           });
-          console.log(`  更新: ${row.level} 级别统计，数量: ${row.count}`);
         } else {
           // 如果不存在，则创建新记录
           await LogStatistics.create({
             ...whereConditions,
             count: row.count,
           });
-          console.log(`  创建: ${row.level} 级别统计，数量: ${row.count}`);
         }
       }
 
-      console.log(
+      await systemLogger.info(
         `✅ ${statType}统计数据更新完成，共处理 ${rows.length} 条记录`
       );
     } catch (error) {
-      console.error(`❌ 更新${statType}统计数据失败:`, error);
+      await systemLogger.error(`更新${statType}统计数据失败`, {
+        error,
+        statType,
+      });
       throw error;
     }
   }
@@ -258,7 +256,7 @@ export class LogStatisticsService {
 
       return { data, total };
     } catch (error) {
-      console.error("查询统计数据失败:", error);
+      await systemLogger.error("查询统计数据失败", { error, options });
       throw error;
     }
   }
@@ -367,7 +365,7 @@ export class LogStatisticsService {
 
       return { data, total };
     } catch (error) {
-      console.error("查询聚合统计数据失败:", error);
+      await systemLogger.error("查询聚合统计数据失败", { error, options });
       throw error;
     }
   }
@@ -382,7 +380,10 @@ export class LogStatisticsService {
       try {
         await this.updateStatistics(statType, targetTime);
       } catch (error) {
-        console.error(`更新${statType}统计失败:`, error);
+        await systemLogger.error(`更新${statType}统计失败`, {
+          error,
+          statType,
+        });
         // 继续处理其他类型的统计
       }
     }
