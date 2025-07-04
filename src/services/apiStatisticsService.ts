@@ -1,7 +1,11 @@
 import { Op } from "sequelize";
 import dayjs from "dayjs";
+import weekOfYear from "dayjs/plugin/weekOfYear";
 import ApiStatistics, { ApiStatType } from "../models/ApiStatistics";
 import { clickhouseClient } from "../config/database";
+
+// 启用周数插件
+dayjs.extend(weekOfYear);
 
 /**
  * API统计查询选项接口
@@ -178,7 +182,7 @@ export class ApiStatisticsService {
    */
   private async batchUpsertStatistics(
     statType: ApiStatType,
-    statTime: Date,
+    statTime: string,
     data: Array<{
       method: string;
       host: string;
@@ -197,44 +201,65 @@ export class ApiStatisticsService {
       error_rate: number;
     }>
   ): Promise<void> {
-    const statDate = dayjs(statTime).format("YYYY-MM-DD");
+    const statDate = dayjs(
+      statTime,
+      statType === ApiStatType.HOUR
+        ? "YYYYMMDDHH"
+        : statType === ApiStatType.DAY
+        ? "YYYYMMDD"
+        : statType === ApiStatType.MONTH
+        ? "YYYYMM"
+        : "YYYY[W]WW"
+    ).format("YYYY-MM-DD");
 
     for (const row of data) {
       try {
-        await ApiStatistics.upsert(
-          {
-            stat_time: statTime,
-            stat_type: statType,
-            stat_date: statDate,
-            method: row.method || "",
-            host: row.host || "",
-            path: row.path || "",
-            appid: row.appid || "",
-            enterprise_id: row.enterprise_id || "",
-            status_code: row.status_code || 0,
-            request_count: row.request_count || 0,
-            unique_users: row.unique_users || 0,
-            unique_ips: row.unique_ips || 0,
-            avg_response_time: Number(row.avg_response_time) || 0,
-            p95_response_time: Number(row.p95_response_time) || 0,
-            total_bytes_sent: Number(row.total_bytes_sent) || 0,
-            total_bytes_received: Number(row.total_bytes_received) || 0,
-            error_count: row.error_count || 0,
-            error_rate: Number(row.error_rate) || 0,
-          },
-          {
-            conflictFields: [
-              "stat_time",
-              "stat_type",
-              "method",
-              "host",
-              "path",
-              "appid",
-              "enterprise_id",
-              "status_code",
-            ],
-          }
-        );
+        const whereConditions = {
+          stat_time: statTime,
+          stat_type: statType,
+          method: row.method || "",
+          host: row.host || "",
+          path: row.path || "",
+          appid: row.appid || "",
+          enterprise_id: row.enterprise_id || "",
+          status_code: row.status_code || 0,
+        };
+
+        // 先查询是否已存在相同记录
+        const existingRecord = await ApiStatistics.findOne({
+          where: whereConditions,
+        });
+
+        const updateData = {
+          stat_date: statDate,
+          request_count: row.request_count || 0,
+          unique_users: row.unique_users || 0,
+          unique_ips: row.unique_ips || 0,
+          avg_response_time: Number(row.avg_response_time) || 0,
+          p95_response_time: Number(row.p95_response_time) || 0,
+          total_bytes_sent: Number(row.total_bytes_sent) || 0,
+          total_bytes_received: Number(row.total_bytes_received) || 0,
+          error_count: row.error_count || 0,
+          error_rate: Number(row.error_rate) || 0,
+          update_time: new Date(),
+        };
+
+        if (existingRecord) {
+          // 如果存在，则更新记录
+          await existingRecord.update(updateData);
+          console.log(
+            `  更新: ${row.method} ${row.path} - ${row.request_count}请求`
+          );
+        } else {
+          // 如果不存在，则创建新记录
+          await ApiStatistics.create({
+            ...whereConditions,
+            ...updateData,
+          });
+          console.log(
+            `  创建: ${row.method} ${row.path} - ${row.request_count}请求`
+          );
+        }
       } catch (error) {
         console.error(`❌ 更新API统计记录失败:`, error);
         console.error(`❌ 数据:`, row);
@@ -250,14 +275,14 @@ export class ApiStatisticsService {
     const target = dayjs(targetTime);
     let start: dayjs.Dayjs;
     let end: dayjs.Dayjs;
-    let statTime: Date;
+    let statTime: string; // 改为字符串类型
 
     switch (statType) {
       case ApiStatType.HOUR:
         // 获取指定小时的完整时间段
         start = target.startOf("hour");
         end = target.endOf("hour");
-        statTime = start.toDate();
+        statTime = target.format("YYYYMMDDHH"); // 小时格式：2025070415
         break;
 
       case ApiStatType.DAY:
@@ -271,7 +296,7 @@ export class ApiStatisticsService {
           start = target.startOf("day");
           end = target.endOf("day");
         }
-        statTime = start.toDate();
+        statTime = target.format("YYYYMMDD"); // 天格式：20250704
         break;
 
       case ApiStatType.WEEK:
@@ -285,7 +310,10 @@ export class ApiStatisticsService {
           start = target.startOf("week");
           end = target.endOf("week");
         }
-        statTime = start.toDate();
+        statTime = `${target.format("YYYY")}W${target
+          .week()
+          .toString()
+          .padStart(2, "0")}`; // 周格式：2025W30
         break;
 
       case ApiStatType.MONTH:
@@ -299,7 +327,7 @@ export class ApiStatisticsService {
           start = target.startOf("month");
           end = target.endOf("month");
         }
-        statTime = start.toDate();
+        statTime = target.format("YYYYMM"); // 月格式：202507
         break;
 
       default:
@@ -337,17 +365,17 @@ export class ApiStatisticsService {
     // 构建查询条件
     const whereConditions: any = {};
 
-    if (startTime) {
+    if (startTime && statType) {
       whereConditions.stat_time = {
         ...whereConditions.stat_time,
-        [Op.gte]: new Date(startTime),
+        [Op.gte]: this.convertToStatTimeFormat(startTime, statType),
       };
     }
 
-    if (endTime) {
+    if (endTime && statType) {
       whereConditions.stat_time = {
         ...whereConditions.stat_time,
-        [Op.lte]: new Date(endTime),
+        [Op.lte]: this.convertToStatTimeFormat(endTime, statType),
       };
     }
 
@@ -398,7 +426,7 @@ export class ApiStatisticsService {
       });
 
       const data: ApiStatisticsResult[] = records.map((record) => ({
-        stat_time: record.stat_time.toISOString(),
+        stat_time: record.stat_time,
         stat_type: record.stat_type,
         method: record.method,
         host: record.host,
@@ -458,17 +486,17 @@ export class ApiStatisticsService {
     // 构建查询条件
     const whereConditions: any = {};
 
-    if (startTime) {
+    if (startTime && statType) {
       whereConditions.stat_time = {
         ...whereConditions.stat_time,
-        [Op.gte]: new Date(startTime),
+        [Op.gte]: this.convertToStatTimeFormat(startTime, statType),
       };
     }
 
-    if (endTime) {
+    if (endTime && statType) {
       whereConditions.stat_time = {
         ...whereConditions.stat_time,
-        [Op.lte]: new Date(endTime),
+        [Op.lte]: this.convertToStatTimeFormat(endTime, statType),
       };
     }
 
@@ -539,6 +567,29 @@ export class ApiStatisticsService {
         console.error(`更新API ${statType}统计失败:`, error);
         // 继续处理其他类型的统计
       }
+    }
+  }
+
+  /**
+   * 将输入的时间字符串转换为对应统计类型的格式字符串
+   */
+  private convertToStatTimeFormat(time: string, statType: ApiStatType): string {
+    const target = dayjs(time);
+
+    switch (statType) {
+      case ApiStatType.HOUR:
+        return target.format("YYYYMMDDHH"); // 小时格式：2025070415
+      case ApiStatType.DAY:
+        return target.format("YYYYMMDD"); // 天格式：20250704
+      case ApiStatType.WEEK:
+        return `${target.format("YYYY")}W${target
+          .week()
+          .toString()
+          .padStart(2, "0")}`; // 周格式：2025W30
+      case ApiStatType.MONTH:
+        return target.format("YYYYMM"); // 月格式：202507
+      default:
+        throw new Error(`不支持的统计类型: ${statType}`);
     }
   }
 }

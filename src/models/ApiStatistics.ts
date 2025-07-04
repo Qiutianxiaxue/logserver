@@ -15,7 +15,7 @@ export enum ApiStatType {
  */
 export interface ApiStatisticsAttributes {
   qc_api_statistics_id: string; // 主键
-  stat_time: Date; // 统计时间
+  stat_time: string; // 统计时间：小时=2025070415, 天=20250704, 月=202507, 周=2025W30
   stat_type: ApiStatType; // 统计类型
   stat_date: string; // 统计日期 (YYYY-MM-DD)
 
@@ -57,7 +57,7 @@ export class ApiStatistics
   implements ApiStatisticsAttributes
 {
   public qc_api_statistics_id!: string;
-  public stat_time!: Date;
+  public stat_time!: string; // 改为字符串类型
   public stat_type!: ApiStatType;
   public stat_date!: string;
 
@@ -97,9 +97,10 @@ export class ApiStatistics
           comment: "API统计记录主键",
         },
         stat_time: {
-          type: DataTypes.DATE,
+          type: DataTypes.STRING(20), // 改为字符串类型，长度20足够存储各种格式
           allowNull: false,
-          comment: "统计时间",
+          comment:
+            "统计时间：小时=2025070415, 天=20250704, 月=202507, 周=2025W30",
         },
         stat_type: {
           type: DataTypes.ENUM(...Object.values(ApiStatType)),
