@@ -3,14 +3,14 @@ info:
   title: 日志服务器 API
   description: |
     基于 Node.js、Express 和 TypeScript 的日志服务器 API。
-    
+
     ## 功能特性
     - 统一的响应格式 (code/data/message)
     - 所有接口使用 POST 方法
     - 支持日志缓存和数据库健康检查
     - 支持批量日志提交
     - 完整的时间处理和验证
-    
+
     ## 响应格式
     所有接口统一返回格式：
     ```json
@@ -66,7 +66,7 @@ components:
         data:
           type: object
           description: 返回的数据
-          
+
     LogData:
       type: object
       required:
@@ -119,7 +119,7 @@ components:
           type: string
           description: 时间戳 (YYYY-MM-DD HH:mm:ss 或 ISO 8601)
           example: "2025-12-11 14:30:25"
-          
+
     LogQueryRequest:
       type: object
       properties:
@@ -176,7 +176,7 @@ components:
         keyword:
           type: string
           description: 关键词搜索
-          
+
     BatchLogRequest:
       type: object
       required:
@@ -185,11 +185,11 @@ components:
         logs:
           type: array
           items:
-            $ref: '#/components/schemas/LogData'
+            $ref: "#/components/schemas/LogData"
           minItems: 1
           maxItems: 1000
           description: 日志数组 (最多1000条)
-          
+
     StatsRequest:
       type: object
       properties:
@@ -220,7 +220,7 @@ components:
           type: string
           description: 创建日期
           example: "2025-12-11"
-        
+
         # 请求基本信息（必填）
         method:
           type: string
@@ -260,7 +260,7 @@ components:
           type: string
           description: 内容类型
           example: "application/json"
-        
+
         # 应用信息
         appid:
           type: string
@@ -270,7 +270,7 @@ components:
           type: string
           description: 应用名称
           example: "UserService"
-        
+
         # 企业信息
         enterprise_id:
           type: string
@@ -280,7 +280,7 @@ components:
           type: string
           description: 企业名称
           example: "Example Corp"
-        
+
         # 用户和会话信息
         user_id:
           type: string
@@ -302,7 +302,7 @@ components:
           type: string
           description: 来源页面
           example: "https://example.com/home"
-        
+
         # 响应信息（必填：status_code, response_time）
         status_code:
           type: integer
@@ -326,19 +326,19 @@ components:
             - type: object
           description: 响应头
           example: '{"Content-Type": "application/json"}'
-        
+
         # 地理位置信息
         country_info:
           type: string
           description: 国家信息
           example: "China,CN,Beijing"
-        
+
         # 设备和浏览器信息
         browser:
           type: string
           description: 浏览器
           example: "Chrome"
-        
+
         # 服务器信息
         service_type:
           type: string
@@ -352,7 +352,7 @@ components:
           type: string
           description: 服务器IP地址
           example: "10.0.1.100"
-        
+
         # 错误和调试信息
         error_code:
           type: string
@@ -582,13 +582,13 @@ paths:
       summary: 首页信息
       description: 获取服务器基本信息
       responses:
-        '200':
+        "200":
           description: 成功获取首页信息
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -630,13 +630,13 @@ paths:
       summary: 健康检查
       description: 检查服务器健康状态
       responses:
-        '200':
+        "200":
           description: 健康检查成功
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -677,7 +677,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LogQueryRequest'
+              $ref: "#/components/schemas/LogQueryRequest"
             examples:
               basic:
                 summary: 基础查询
@@ -724,13 +724,13 @@ paths:
                   startTime: "2025-12-11 08:00:00"
                   endTime: "2025-12-11 20:00:00"
       responses:
-        '200':
+        "200":
           description: 成功获取日志列表
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -739,7 +739,7 @@ paths:
                           logs:
                             type: array
                             items:
-                              $ref: '#/components/schemas/LogData'
+                              $ref: "#/components/schemas/LogData"
                           count:
                             type: integer
                             example: 25
@@ -749,12 +749,12 @@ paths:
                           timestamp:
                             type: string
                             example: "2025-12-11 14:30:25"
-        '400':
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                $ref: "#/components/schemas/ApiResponse"
               example:
                 code: 0
                 message: "开始时间格式无效"
@@ -770,7 +770,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LogData'
+              $ref: "#/components/schemas/LogData"
             examples:
               user_behavior_log:
                 summary: 用户行为日志
@@ -819,13 +819,13 @@ paths:
                     old_role: "user"
                     new_role: "admin"
       responses:
-        '200':
+        "200":
           description: 日志创建成功
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -857,21 +857,21 @@ paths:
                       cached: true
                       totalCached: 156
                       timestamp: "2025-12-11 14:30:25"
-        '400':
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                $ref: "#/components/schemas/ApiResponse"
               example:
                 code: 0
                 message: "日志消息不能为空"
-        '500':
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                $ref: "#/components/schemas/ApiResponse"
               example:
                 code: 0
                 message: "日志存储失败，数据库和缓存都不可用"
@@ -887,7 +887,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ApiRequestLogData'
+              $ref: "#/components/schemas/ApiRequestLogData"
             examples:
               user_login:
                 summary: 用户登录请求
@@ -977,13 +977,13 @@ paths:
                   organization_id: "org_retail_chain"
                   request_id: "req_update_prod_999"
       responses:
-        '200':
+        "200":
           description: API 请求日志创建成功
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -1000,12 +1000,12 @@ paths:
                     message: "API请求日志已成功存储"
                     data:
                       timestamp: "2025-12-11 14:30:25"
-        '400':
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                $ref: "#/components/schemas/ApiResponse"
               examples:
                 missing_required:
                   summary: 缺少必填字段
@@ -1017,12 +1017,12 @@ paths:
                   value:
                     code: 0
                     message: "时间戳格式无效，支持格式: YYYY-MM-DD HH:mm:ss 或 ISO 8601"
-        '500':
+        "500":
           description: 服务器内部错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                $ref: "#/components/schemas/ApiResponse"
               example:
                 code: 0
                 message: "API请求日志存储失败"
@@ -1166,13 +1166,13 @@ paths:
                   startTime: "2025-12-11 00:00:00"
                   endTime: "2025-12-11 23:59:59"
       responses:
-        '200':
+        "200":
           description: API 请求日志查询成功
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -1181,7 +1181,7 @@ paths:
                           logs:
                             type: array
                             items:
-                              $ref: '#/components/schemas/ApiRequestLogData'
+                              $ref: "#/components/schemas/ApiRequestLogData"
                           count:
                             type: integer
                             example: 25
@@ -1224,13 +1224,13 @@ paths:
                   timeRange: "7d"
                   groupBy: "day"
       responses:
-        '200':
+        "200":
           description: API 请求统计获取成功
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -1311,13 +1311,13 @@ paths:
                   timeRange: "7d"
                   limit: 20
       responses:
-        '200':
+        "200":
           description: 热门端点统计获取成功
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -1383,13 +1383,13 @@ paths:
                   timeRange: "7d"
                   limit: 20
       responses:
-        '200':
+        "200":
           description: API 错误统计获取成功
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -1430,7 +1430,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BatchLogRequest'
+              $ref: "#/components/schemas/BatchLogRequest"
             example:
               logs:
                 - level: "info"
@@ -1458,13 +1458,13 @@ paths:
                   enterprise_id: "ent_789012"
                   user_id: "user123"
       responses:
-        '200':
+        "200":
           description: 批量日志创建成功
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -1482,12 +1482,12 @@ paths:
                           timestamp:
                             type: string
                             example: "2025-12-11 14:30:25"
-        '400':
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                $ref: "#/components/schemas/ApiResponse"
               examples:
                 empty_array:
                   summary: 空数组
@@ -1511,7 +1511,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/StatsRequest'
+              $ref: "#/components/schemas/StatsRequest"
             examples:
               hour:
                 summary: 1小时统计
@@ -1526,13 +1526,13 @@ paths:
                 value:
                   timeRange: "7d"
       responses:
-        '200':
+        "200":
           description: 统计信息获取成功
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -1569,13 +1569,13 @@ paths:
       summary: 获取缓存状态
       description: 查询本地缓存的状态信息
       responses:
-        '200':
+        "200":
           description: 缓存状态获取成功
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -1625,25 +1625,25 @@ paths:
       summary: 处理缓存日志
       description: |
         手动触发缓存日志写入数据库
-        
+
         **功能说明:**
         - 强制检查数据库健康状态
         - 处理所有缓存中的日志数据
         - 系统会自动处理缓存，通常无需手动调用
         - 主要用于故障排查和运维管理
-        
+
         **注意事项:**
         - 只有在数据库连接健康时才会处理缓存
         - 处理失败的日志会保留在缓存中
         - 处理前会自动备份缓存文件
       responses:
-        '200':
+        "200":
           description: 缓存处理成功
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -1659,16 +1659,19 @@ paths:
                             type: array
                             items:
                               type: string
-                            example: ["处理缓存日志失败 (ID: cache_123): Database error"]
+                            example:
+                              [
+                                "处理缓存日志失败 (ID: cache_123): Database error",
+                              ]
                           timestamp:
                             type: string
                             example: "2025-12-11 14:30:25"
-        '500':
+        "500":
           description: 缓存处理失败
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                $ref: "#/components/schemas/ApiResponse"
               example:
                 code: 0
                 message: "数据库连接不可用"
@@ -1680,13 +1683,13 @@ paths:
       summary: 清空缓存
       description: 手动清空本地缓存文件
       responses:
-        '200':
+        "200":
           description: 缓存清空成功
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -1703,13 +1706,13 @@ paths:
       summary: 系统健康报告
       description: 获取详细的系统健康状态报告
       responses:
-        '200':
+        "200":
           description: 系统健康报告获取成功
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -1839,13 +1842,13 @@ paths:
             default: 0
             minimum: 0
       responses:
-        '200':
+        "200":
           description: 成功获取日志统计数据
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -1854,7 +1857,7 @@ paths:
                           statistics:
                             type: array
                             items:
-                              $ref: '#/components/schemas/LogStatisticsData'
+                              $ref: "#/components/schemas/LogStatisticsData"
                           total:
                             type: integer
                             example: 150
@@ -1933,13 +1936,13 @@ paths:
             type: integer
             default: 100
       responses:
-        '200':
+        "200":
           description: 成功获取聚合统计数据
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -1992,13 +1995,13 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: 成功获取统计概览
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -2062,13 +2065,13 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: 成功获取时间序列数据
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -2103,7 +2106,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateStatisticsRequest'
+              $ref: "#/components/schemas/UpdateStatisticsRequest"
             examples:
               update_hour:
                 summary: 更新小时统计
@@ -2116,13 +2119,13 @@ paths:
                   statType: "day"
                   targetTime: "2025-12-11T00:00:00.000Z"
       responses:
-        '200':
+        "200":
           description: 统计数据更新成功
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -2137,12 +2140,12 @@ paths:
                           timestamp:
                             type: string
                             example: "2025-12-11 14:30:25"
-        '400':
+        "400":
           description: 请求参数错误
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApiResponse'
+                $ref: "#/components/schemas/ApiResponse"
               example:
                 code: 0
                 message: "statType必须是以下值之一: hour, day, week, month"
@@ -2173,13 +2176,13 @@ paths:
                 summary: 更新到当前时间
                 value: {}
       responses:
-        '200':
+        "200":
           description: 所有统计数据更新成功
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -2276,13 +2279,13 @@ paths:
             default: 0
             minimum: 0
       responses:
-        '200':
+        "200":
           description: 成功获取API统计数据
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -2291,7 +2294,7 @@ paths:
                           statistics:
                             type: array
                             items:
-                              $ref: '#/components/schemas/ApiStatisticsData'
+                              $ref: "#/components/schemas/ApiStatisticsData"
                           total:
                             type: integer
                             example: 250
@@ -2348,13 +2351,13 @@ paths:
             type: integer
             default: 50
       responses:
-        '200':
+        "200":
           description: 成功获取API聚合统计数据
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -2414,13 +2417,13 @@ paths:
             enum: [hour, day, week, month]
             default: day
       responses:
-        '200':
+        "200":
           description: 成功获取API统计概览
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -2500,13 +2503,13 @@ paths:
             type: integer
             default: 100
       responses:
-        '200':
+        "200":
           description: 成功获取API时间序列数据
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -2559,7 +2562,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateStatisticsRequest'
+              $ref: "#/components/schemas/UpdateStatisticsRequest"
             examples:
               update_api_hour:
                 summary: 更新API小时统计
@@ -2572,13 +2575,13 @@ paths:
                   statType: "day"
                   targetTime: "2025-12-11T00:00:00.000Z"
       responses:
-        '200':
+        "200":
           description: API统计数据更新成功
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -2617,13 +2620,13 @@ paths:
                 value:
                   targetTime: "2025-12-11T14:00:00.000Z"
       responses:
-        '200':
+        "200":
           description: 所有API统计数据更新成功
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ApiResponse'
+                  - $ref: "#/components/schemas/ApiResponse"
                   - type: object
                     properties:
                       data:
@@ -2637,6 +2640,6 @@ paths:
                           targetTime:
                             type: string
                             example: "2025-12-11T14:00:00.000Z"
-                              timestamp:
-                                type: string
-                                example: "2025-12-11 14:30:25" 
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
