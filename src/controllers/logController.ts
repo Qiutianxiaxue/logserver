@@ -6,6 +6,7 @@ import DateTime from "../utils/datetime";
 import { ResponseFormatter } from "../utils/responseFormatter";
 import { LogCache } from "../utils/logCache";
 import { DatabaseHealth } from "../utils/databaseHealth";
+import { logger } from "../utils/logger";
 
 /**
  * 查询日志列表
@@ -112,7 +113,7 @@ export const createLog = asyncHandler(
     // 主动检查数据库健康状态
     if (!databaseHealth.getHealthStatus().isHealthy) {
       // 数据库不健康，直接缓存
-      console.log("⚠️ 数据库不健康，直接缓存日志");
+      logger.warnSync("⚠️ 数据库不健康，直接缓存日志");
 
       try {
         await logCache.addToCache(logData);
@@ -132,7 +133,9 @@ export const createLog = asyncHandler(
         res.json(response);
         return;
       } catch (cacheError) {
-        console.error("❌ 缓存日志失败:", cacheError);
+        logger.errorSync("❌ 缓存日志失败:", {
+          error: (cacheError as Error).message,
+        });
 
         const response: ApiResponse = {
           code: 0,
@@ -149,16 +152,18 @@ export const createLog = asyncHandler(
       await insertLog(logData);
 
       if (NODE_ENV === "development") {
-        console.log("✅ 日志已存储:", logData);
+        logger.debugSync("✅ 日志已存储:", logData);
       }
 
       // 数据库写入成功，检查并处理缓存中的待处理日志
       const cacheInfo = await logCache.getCacheInfo();
       if (cacheInfo.count > 0) {
-        console.log(`📦 检测到 ${cacheInfo.count} 条缓存日志，触发后台处理...`);
+        logger.infoSync(
+          `📦 检测到 ${cacheInfo.count} 条缓存日志，触发后台处理...`
+        );
         // 异步处理缓存，不阻塞当前响应
         databaseHealth.triggerCacheProcessing().catch((error) => {
-          console.error("❌ 后台处理缓存失败:", error);
+          logger.errorSync("❌ 后台处理缓存失败:", { error: error.message });
         });
       }
 
@@ -173,7 +178,9 @@ export const createLog = asyncHandler(
       res.json(response);
     } catch (error) {
       // 数据库插入失败，尝试缓存
-      console.warn("⚠️ 数据库写入失败，转为缓存模式:", error);
+      logger.warnSync("⚠️ 数据库写入失败，转为缓存模式:", {
+        error: (error as Error).message,
+      });
 
       try {
         await logCache.addToCache(logData);
@@ -193,7 +200,9 @@ export const createLog = asyncHandler(
         res.json(response);
       } catch (cacheError) {
         // 缓存也失败了
-        console.error("❌ 缓存日志也失败:", cacheError);
+        logger.errorSync("❌ 缓存日志也失败:", {
+          error: (cacheError as Error).message,
+        });
 
         const response: ApiResponse = {
           code: 0,
@@ -402,7 +411,9 @@ export const createLogsBatch = asyncHandler(
     // 主动检查数据库健康状态
     if (!databaseHealth.getHealthStatus().isHealthy) {
       // 数据库不健康，直接缓存
-      console.log(`⚠️ 数据库不健康，直接缓存 ${processedLogs.length} 条日志`);
+      logger.warnSync(
+        `⚠️ 数据库不健康，直接缓存 ${processedLogs.length} 条日志`
+      );
 
       try {
         await logCache.addToCache(processedLogs);
@@ -423,7 +434,9 @@ export const createLogsBatch = asyncHandler(
         res.json(response);
         return;
       } catch (cacheError) {
-        console.error("❌ 批量缓存日志失败:", cacheError);
+        logger.errorSync("❌ 批量缓存日志失败:", {
+          error: (cacheError as Error).message,
+        });
 
         const response: ApiResponse = {
           code: 0,
@@ -441,16 +454,18 @@ export const createLogsBatch = asyncHandler(
       await Promise.all(insertPromises);
 
       if (NODE_ENV === "development") {
-        console.log(`✅ 批量插入${processedLogs.length}条日志成功`);
+        logger.debugSync(`✅ 批量插入${processedLogs.length}条日志成功`);
       }
 
       // 批量写入成功，检查并处理缓存中的待处理日志
       const cacheInfo = await logCache.getCacheInfo();
       if (cacheInfo.count > 0) {
-        console.log(`📦 检测到 ${cacheInfo.count} 条缓存日志，触发后台处理...`);
+        logger.infoSync(
+          `📦 检测到 ${cacheInfo.count} 条缓存日志，触发后台处理...`
+        );
         // 异步处理缓存，不阻塞当前响应
         databaseHealth.triggerCacheProcessing().catch((error) => {
-          console.error("❌ 后台处理缓存失败:", error);
+          logger.errorSync("❌ 后台处理缓存失败:", { error: error.message });
         });
       }
 
@@ -467,7 +482,9 @@ export const createLogsBatch = asyncHandler(
       res.json(response);
     } catch (error) {
       // 批量插入失败，尝试缓存
-      console.warn("⚠️ 批量数据库写入失败，转为缓存模式:", error);
+      logger.warnSync("⚠️ 批量数据库写入失败，转为缓存模式:", {
+        error: (error as Error).message,
+      });
 
       try {
         await logCache.addToCache(processedLogs);
@@ -488,7 +505,9 @@ export const createLogsBatch = asyncHandler(
         res.json(response);
       } catch (cacheError) {
         // 缓存也失败了
-        console.error("❌ 批量缓存日志也失败:", cacheError);
+        logger.errorSync("❌ 批量缓存日志也失败:", {
+          error: (cacheError as Error).message,
+        });
 
         const response: ApiResponse = {
           code: 0,

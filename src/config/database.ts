@@ -446,6 +446,11 @@ export const getClient = (): ClickHouseClient | null => {
 };
 
 /**
+ * 导出ClickHouse客户端实例
+ */
+export { clickhouseClient };
+
+/**
  * 数据库实例对象（用于健康检查和其他操作）
  */
 export const database = {

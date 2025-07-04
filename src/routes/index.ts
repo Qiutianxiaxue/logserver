@@ -1,6 +1,7 @@
 import { Router } from "express";
 import healthRoutes from "./healthRoutes";
 import logRoutes from "./logRoutes";
+import statisticsRoutes from "./statisticsRoutes";
 
 const router: Router = Router();
 
@@ -12,5 +13,8 @@ router.use("/", healthRoutes);
 
 // 日志相关路由
 router.use(`${API_PREFIX}/logs`, logRoutes);
+
+// 统计相关路由
+router.use(`${API_PREFIX}/logs`, statisticsRoutes);
 
 export default router;

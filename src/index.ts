@@ -6,9 +6,11 @@ import cors from "cors";
 import morgan from "morgan";
 import helmet from "helmet";
 import { initClickHouse } from "./config/database";
+import { initMySQL, closeMySQL } from "./config/mysql";
 import { ApiResponse, HttpError } from "./types";
 import routes from "./routes";
 import { startSimpleLogService } from "./services/simpleLogService";
+import { statisticsScheduler } from "./utils/scheduler";
 
 const app: Application = express();
 
@@ -26,14 +28,14 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-              scriptSrc: [
-        "'self'", 
-        "'unsafe-inline'", // 允许内联脚本（Swagger UI需要）
-      ],
-      styleSrc: [
-        "'self'", 
-        "'unsafe-inline'", // 允许内联样式（Swagger UI需要）
-      ],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'", // 允许内联脚本（Swagger UI需要）
+        ],
+        styleSrc: [
+          "'self'",
+          "'unsafe-inline'", // 允许内联样式（Swagger UI需要）
+        ],
         imgSrc: ["'self'", "data:", "https:"], // 允许图片资源
         fontSrc: ["'self'", "https:", "data:"], // 允许字体资源
         connectSrc: ["'self'"], // API连接
@@ -89,18 +91,28 @@ app.use((err: HttpError, req: Request, res: Response, _next: NextFunction) => {
     const dbClient = await initClickHouse();
 
     if (dbClient) {
-      console.log("✅ 数据库初始化成功，服务将在在线模式下运行");
+      console.log("✅ ClickHouse数据库初始化成功");
     } else {
-      console.warn("⚠️ 数据库初始化失败，服务将在离线模式下运行");
+      console.warn("⚠️ ClickHouse数据库初始化失败，服务将在离线模式下运行");
       console.warn("📦 日志将被缓存到本地，等待数据库恢复后自动同步");
     }
 
-    // 2. 启动HTTP服务器
+    // 2. 初始化MySQL连接（用于统计数据）
+    console.log("📊 正在初始化MySQL连接...");
+    const mysqlClient = await initMySQL();
+
+    if (mysqlClient) {
+      console.log("✅ MySQL数据库初始化成功");
+    } else {
+      console.warn("⚠️ MySQL数据库初始化失败，统计功能将不可用");
+    }
+
+    // 3. 启动HTTP服务器
     const server = app.listen(PORT, () => {
       console.log(`🌐 HTTP服务器已启动，端口: ${PORT}`);
     });
 
-    // 3. 启动简化日志服务（WebSocket接收器 + 数据库存储）
+    // 4. 启动简化日志服务（WebSocket接收器 + 数据库存储）
     console.log("📡 正在启动简化日志服务...");
     const logService = await startSimpleLogService({
       wsUrl: LOG_WEBSOCKET_URL,
@@ -109,7 +121,13 @@ app.use((err: HttpError, req: Request, res: Response, _next: NextFunction) => {
       autoInitDatabase: false, // 已经在上面初始化过了
     });
 
-    // 4. 打印启动信息
+    // 5. 启动统计数据更新调度器
+    if (mysqlClient) {
+      console.log("📊 正在启动统计数据更新调度器...");
+      statisticsScheduler.start();
+    }
+
+    // 6. 打印启动信息
     console.log("\n" + "=".repeat(60));
     console.log("🎉 日志服务器启动成功！");
     console.log("=".repeat(60));
@@ -133,6 +151,18 @@ app.use((err: HttpError, req: Request, res: Response, _next: NextFunction) => {
       `📈 日志统计: POST http://localhost:${PORT}${API_PREFIX}/logs/stats`
     );
     console.log(
+      `📊 查询统计: GET http://localhost:${PORT}${API_PREFIX}/logs/statistics`
+    );
+    console.log(
+      `📊 统计概览: GET http://localhost:${PORT}${API_PREFIX}/logs/statistics/overview`
+    );
+    console.log(
+      `📊 时间序列: GET http://localhost:${PORT}${API_PREFIX}/logs/statistics/timeseries`
+    );
+    console.log(
+      `🔄 更新统计: POST http://localhost:${PORT}${API_PREFIX}/logs/statistics/update`
+    );
+    console.log(
       `💾 缓存状态: POST http://localhost:${PORT}${API_PREFIX}/logs/cache/status`
     );
     console.log(
@@ -144,6 +174,7 @@ app.use((err: HttpError, req: Request, res: Response, _next: NextFunction) => {
     console.log(
       `🔄 运行模式: ${dbClient ? "在线模式" : "离线模式（缓存模式）"}`
     );
+    console.log(`📊 统计功能: ${mysqlClient ? "已启用" : "已禁用"}`);
     console.log(`📋 所有接口统一使用 POST 方法`);
     if (NODE_ENV === "development") {
       console.log(`📋 环境变量已加载: ${process.env.NODE_ENV ? "✅" : "❌"}`);
@@ -159,6 +190,8 @@ app.use((err: HttpError, req: Request, res: Response, _next: NextFunction) => {
 
         try {
           await logService.shutdown();
+          statisticsScheduler.stop();
+          await closeMySQL();
           console.log("✅ 所有服务已安全关闭");
           process.exit(0);
         } catch (error) {
