@@ -2637,6 +2637,6 @@ paths:
                           targetTime:
                             type: string
                             example: "2025-12-11T14:00:00.000Z"
-                          timestamp:
-                            type: string
-                            example: "2025-12-11 14:30:25" 
+                              timestamp:
+                                type: string
+                                example: "2025-12-11 14:30:25" 
