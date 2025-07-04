@@ -39,6 +39,8 @@ tags:
     description: 基础接口 (首页、健康检查)
   - name: 日志管理
     description: 日志的创建、查询和统计
+  - name: 统计分析
+    description: 日志统计和API请求统计分析
   - name: 缓存管理
     description: 本地缓存的管理和状态查询
   - name: 系统监控
@@ -364,6 +366,213 @@ components:
           type: string
           description: 错误追踪信息
           example: "AuthenticationError at line 123"
+
+    LogStatisticsData:
+      type: object
+      properties:
+        qc_log_statistics_id:
+          type: integer
+          description: 统计记录ID
+          example: 12345
+        stat_time:
+          type: string
+          description: 统计时间点 (小时=2025070415, 天=20250704, 月=202507, 周=2025W30)
+          example: "20251211"
+        stat_type:
+          type: string
+          enum: [hour, day, week, month]
+          description: 统计类型
+          example: "day"
+        log_type:
+          type: string
+          description: 日志类型
+          example: "user_behavior"
+        service:
+          type: string
+          description: 服务名称
+          example: "auth-service"
+        level:
+          type: string
+          enum: [debug, info, warn, error]
+          description: 日志级别
+          example: "info"
+        appid:
+          type: string
+          description: 应用ID
+          example: "app_123456"
+        enterprise_id:
+          type: string
+          description: 企业ID
+          example: "ent_789012"
+        count:
+          type: integer
+          description: 统计数量
+          example: 150
+        create_time:
+          type: string
+          description: 创建时间
+          example: "2025-12-11 14:30:25"
+        update_time:
+          type: string
+          description: 更新时间
+          example: "2025-12-11 14:30:25"
+
+    ApiStatisticsData:
+      type: object
+      properties:
+        qc_api_statistics_id:
+          type: string
+          description: API统计记录ID
+          example: "api_stat_12345"
+        stat_time:
+          type: string
+          description: 统计时间点
+          example: "20251211"
+        stat_type:
+          type: string
+          enum: [hour, day, week, month]
+          description: 统计类型
+          example: "day"
+        stat_date:
+          type: string
+          description: 统计日期
+          example: "2025-12-11"
+        method:
+          type: string
+          description: HTTP方法
+          example: "POST"
+        host:
+          type: string
+          description: 主机名
+          example: "api.example.com"
+        path:
+          type: string
+          description: URL路径
+          example: "/v1/auth/login"
+        appid:
+          type: string
+          description: 应用ID
+          example: "app_123456"
+        enterprise_id:
+          type: string
+          description: 企业ID
+          example: "ent_789012"
+        status_code:
+          type: integer
+          description: HTTP状态码
+          example: 200
+        request_count:
+          type: integer
+          description: 请求总数
+          example: 1250
+        unique_users:
+          type: integer
+          description: 独立用户数
+          example: 85
+        unique_ips:
+          type: integer
+          description: 独立IP数
+          example: 120
+        avg_response_time:
+          type: number
+          description: 平均响应时间(毫秒)
+          example: 125.5
+        p95_response_time:
+          type: number
+          description: 95%响应时间(毫秒)
+          example: 250.8
+        total_bytes_sent:
+          type: integer
+          description: 发送字节总数
+          example: 1048576
+        total_bytes_received:
+          type: integer
+          description: 接收字节总数
+          example: 2097152
+        error_count:
+          type: integer
+          description: 错误数量
+          example: 15
+        error_rate:
+          type: number
+          description: 错误率(%)
+          example: 1.2
+        create_time:
+          type: string
+          description: 创建时间
+          example: "2025-12-11 14:30:25"
+        update_time:
+          type: string
+          description: 更新时间
+          example: "2025-12-11 14:30:25"
+
+    StatisticsQueryRequest:
+      type: object
+      properties:
+        startTime:
+          type: string
+          description: 开始时间 (YYYY-MM-DD HH:mm:ss)
+          example: "2025-12-11 10:00:00"
+        endTime:
+          type: string
+          description: 结束时间 (YYYY-MM-DD HH:mm:ss)
+          example: "2025-12-11 18:00:00"
+        statType:
+          type: string
+          enum: [hour, day, week, month]
+          description: 统计类型
+          example: "day"
+        enterprise_id:
+          type: string
+          description: 企业ID过滤
+          example: "ent_789012"
+        appid:
+          type: string
+          description: 应用ID过滤
+          example: "app_123456"
+        service:
+          type: string
+          description: 服务名过滤
+          example: "auth-service"
+        level:
+          type: string
+          enum: [debug, info, warn, error]
+          description: 日志级别过滤
+          example: "info"
+        log_type:
+          type: string
+          description: 日志类型过滤
+          example: "user_behavior"
+        limit:
+          type: integer
+          default: 100
+          minimum: 1
+          maximum: 1000
+          description: 返回条数限制
+        offset:
+          type: integer
+          default: 0
+          minimum: 0
+          description: 偏移量
+        groupBy:
+          type: string
+          description: 分组字段 (stat_time/service/level/appid/enterprise_id/log_type)
+          example: "service"
+
+    UpdateStatisticsRequest:
+      type: object
+      required:
+        - statType
+      properties:
+        statType:
+          type: string
+          enum: [hour, day, week, month]
+          description: 统计类型
+          example: "hour"
+        targetTime:
+          type: string
+          description: 目标时间 (ISO 8601格式)
+          example: "2025-12-11T10:00:00.000Z"
 
 paths:
   /:
@@ -1554,4 +1763,880 @@ paths:
                                     type: integer
                               timestamp:
                                 type: string
-                                example: "2025-12-11 14:30:25" 
+                                example: "2025-12-11 14:30:25"
+
+  # 日志统计接口
+  /api/logs/statistics:
+    get:
+      tags:
+        - 统计分析
+      summary: 查询日志统计数据
+      description: 根据条件查询日志统计记录
+      parameters:
+        - name: startTime
+          in: query
+          description: 开始时间 (YYYY-MM-DD HH:mm:ss)
+          schema:
+            type: string
+            example: "2025-12-11 10:00:00"
+        - name: endTime
+          in: query
+          description: 结束时间 (YYYY-MM-DD HH:mm:ss)
+          schema:
+            type: string
+            example: "2025-12-11 18:00:00"
+        - name: statType
+          in: query
+          description: 统计类型
+          schema:
+            type: string
+            enum: [hour, day, week, month]
+            example: "day"
+        - name: enterprise_id
+          in: query
+          description: 企业ID过滤
+          schema:
+            type: string
+            example: "ent_789012"
+        - name: appid
+          in: query
+          description: 应用ID过滤
+          schema:
+            type: string
+            example: "app_123456"
+        - name: service
+          in: query
+          description: 服务名过滤
+          schema:
+            type: string
+            example: "auth-service"
+        - name: level
+          in: query
+          description: 日志级别过滤
+          schema:
+            type: string
+            enum: [debug, info, warn, error]
+            example: "info"
+        - name: log_type
+          in: query
+          description: 日志类型过滤
+          schema:
+            type: string
+            example: "user_behavior"
+        - name: limit
+          in: query
+          description: 返回条数限制
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 1000
+        - name: offset
+          in: query
+          description: 偏移量
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: 成功获取日志统计数据
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          statistics:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/LogStatisticsData'
+                          total:
+                            type: integer
+                            example: 150
+                          pagination:
+                            type: object
+                            properties:
+                              limit:
+                                type: integer
+                                example: 100
+                              offset:
+                                type: integer
+                                example: 0
+                              hasMore:
+                                type: boolean
+                                example: true
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+
+  /api/logs/statistics/aggregated:
+    get:
+      tags:
+        - 统计分析
+      summary: 获取聚合统计数据
+      description: 按指定字段分组获取聚合统计数据
+      parameters:
+        - name: startTime
+          in: query
+          description: 开始时间
+          schema:
+            type: string
+            example: "2025-12-11 10:00:00"
+        - name: endTime
+          in: query
+          description: 结束时间
+          schema:
+            type: string
+            example: "2025-12-11 18:00:00"
+        - name: statType
+          in: query
+          description: 统计类型
+          schema:
+            type: string
+            enum: [hour, day, week, month]
+            example: "day"
+        - name: groupBy
+          in: query
+          description: 分组字段
+          schema:
+            type: string
+            enum: [stat_time, service, level, appid, enterprise_id, log_type]
+            example: "service"
+        - name: enterprise_id
+          in: query
+          schema:
+            type: string
+        - name: appid
+          in: query
+          schema:
+            type: string
+        - name: service
+          in: query
+          schema:
+            type: string
+        - name: level
+          in: query
+          schema:
+            type: string
+        - name: log_type
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: 成功获取聚合统计数据
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          aggregatedData:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                key:
+                                  type: string
+                                value:
+                                  type: string
+                                totalCount:
+                                  type: integer
+                          groupBy:
+                            type: string
+                            example: "service"
+                          total:
+                            type: integer
+                            example: 1250
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+
+  /api/logs/statistics/overview:
+    get:
+      tags:
+        - 统计分析
+      summary: 获取统计概览
+      description: 获取各个维度的统计概览数据
+      parameters:
+        - name: startTime
+          in: query
+          schema:
+            type: string
+            example: "2025-12-11 00:00:00"
+        - name: endTime
+          in: query
+          schema:
+            type: string
+            example: "2025-12-11 23:59:59"
+        - name: enterprise_id
+          in: query
+          schema:
+            type: string
+        - name: appid
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功获取统计概览
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          levelStats:
+                            type: array
+                          serviceStats:
+                            type: array
+                          logTypeStats:
+                            type: array
+                          appidStats:
+                            type: array
+                          enterpriseStats:
+                            type: array
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+
+  /api/logs/statistics/timeseries:
+    get:
+      tags:
+        - 统计分析
+      summary: 获取时间序列统计数据
+      description: 获取按时间排序的统计数据，用于绘制趋势图
+      parameters:
+        - name: startTime
+          in: query
+          schema:
+            type: string
+            example: "2025-12-11 00:00:00"
+        - name: endTime
+          in: query
+          schema:
+            type: string
+            example: "2025-12-11 23:59:59"
+        - name: statType
+          in: query
+          schema:
+            type: string
+            enum: [hour, day, week, month]
+            default: hour
+        - name: enterprise_id
+          in: query
+          schema:
+            type: string
+        - name: appid
+          in: query
+          schema:
+            type: string
+        - name: service
+          in: query
+          schema:
+            type: string
+        - name: level
+          in: query
+          schema:
+            type: string
+        - name: log_type
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功获取时间序列数据
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          timeSeries:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                time:
+                                  type: string
+                                  example: "2025-12-11 14:00:00"
+                                count:
+                                  type: integer
+                                  example: 125
+                          statType:
+                            type: string
+                            example: "hour"
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+
+  /api/logs/statistics/update:
+    post:
+      tags:
+        - 统计分析
+      summary: 手动更新统计数据
+      description: 手动触发指定类型的统计数据更新
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStatisticsRequest'
+            examples:
+              update_hour:
+                summary: 更新小时统计
+                value:
+                  statType: "hour"
+                  targetTime: "2025-12-11T14:00:00.000Z"
+              update_day:
+                summary: 更新日统计
+                value:
+                  statType: "day"
+                  targetTime: "2025-12-11T00:00:00.000Z"
+      responses:
+        '200':
+          description: 统计数据更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          statType:
+                            type: string
+                            example: "hour"
+                          targetTime:
+                            type: string
+                            example: "2025-12-11T14:00:00.000Z"
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+        '400':
+          description: 请求参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+              example:
+                code: 0
+                message: "statType必须是以下值之一: hour, day, week, month"
+
+  /api/logs/statistics/update-all:
+    post:
+      tags:
+        - 统计分析
+      summary: 批量更新所有统计数据
+      description: 批量更新所有类型的统计数据 (hour, day, week, month)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                targetTime:
+                  type: string
+                  description: 目标时间 (ISO 8601格式)
+                  example: "2025-12-11T14:00:00.000Z"
+            examples:
+              update_all:
+                summary: 更新所有统计
+                value:
+                  targetTime: "2025-12-11T14:00:00.000Z"
+              update_all_current:
+                summary: 更新到当前时间
+                value: {}
+      responses:
+        '200':
+          description: 所有统计数据更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          updatedTypes:
+                            type: array
+                            items:
+                              type: string
+                            example: ["hour", "day", "week", "month"]
+                          targetTime:
+                            type: string
+                            example: "2025-12-11T14:00:00.000Z"
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+
+  # API 统计接口
+  /api/logs/api-statistics:
+    get:
+      tags:
+        - 统计分析
+      summary: 查询API统计数据
+      description: 根据条件查询API请求统计记录
+      parameters:
+        - name: startTime
+          in: query
+          description: 开始时间 (YYYY-MM-DD HH:mm:ss)
+          schema:
+            type: string
+            example: "2025-12-11 10:00:00"
+        - name: endTime
+          in: query
+          description: 结束时间 (YYYY-MM-DD HH:mm:ss)
+          schema:
+            type: string
+            example: "2025-12-11 18:00:00"
+        - name: statType
+          in: query
+          description: 统计类型
+          schema:
+            type: string
+            enum: [hour, day, week, month]
+            example: "day"
+        - name: method
+          in: query
+          description: HTTP方法过滤
+          schema:
+            type: string
+            example: "POST"
+        - name: host
+          in: query
+          description: 主机名过滤
+          schema:
+            type: string
+            example: "api.example.com"
+        - name: path
+          in: query
+          description: URL路径过滤
+          schema:
+            type: string
+            example: "/v1/auth/login"
+        - name: appid
+          in: query
+          description: 应用ID过滤
+          schema:
+            type: string
+            example: "app_123456"
+        - name: enterprise_id
+          in: query
+          description: 企业ID过滤
+          schema:
+            type: string
+            example: "ent_789012"
+        - name: status_code
+          in: query
+          description: HTTP状态码过滤
+          schema:
+            type: integer
+            example: 200
+        - name: limit
+          in: query
+          description: 返回条数限制
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 1000
+        - name: offset
+          in: query
+          description: 偏移量
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: 成功获取API统计数据
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          statistics:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/ApiStatisticsData'
+                          total:
+                            type: integer
+                            example: 250
+                          pagination:
+                            type: object
+                            properties:
+                              limit:
+                                type: integer
+                                example: 100
+                              offset:
+                                type: integer
+                                example: 0
+                              hasMore:
+                                type: boolean
+                                example: true
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+
+  /api/logs/api-statistics/aggregated:
+    get:
+      tags:
+        - 统计分析
+      summary: 获取API聚合统计数据
+      description: 按指定字段分组获取API聚合统计数据
+      parameters:
+        - name: startTime
+          in: query
+          schema:
+            type: string
+            example: "2025-12-11 10:00:00"
+        - name: endTime
+          in: query
+          schema:
+            type: string
+            example: "2025-12-11 18:00:00"
+        - name: statType
+          in: query
+          schema:
+            type: string
+            enum: [hour, day, week, month]
+            default: day
+        - name: groupBy
+          in: query
+          description: 分组字段
+          schema:
+            type: string
+            enum: [method, host, path, appid, enterprise_id, status_code]
+            default: method
+            example: "method"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: 成功获取API聚合统计数据
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          aggregatedData:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                key:
+                                  type: string
+                                  example: "method"
+                                value:
+                                  type: string
+                                  example: "POST"
+                                totalCount:
+                                  type: integer
+                                  example: 1250
+                                avgResponseTime:
+                                  type: number
+                                  example: 125.5
+                                errorRate:
+                                  type: number
+                                  example: 1.2
+                          groupBy:
+                            type: string
+                            example: "method"
+                          total:
+                            type: integer
+                            example: 2500
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+
+  /api/logs/api-statistics/overview:
+    get:
+      tags:
+        - 统计分析
+      summary: 获取API统计概览
+      description: 获取各个维度的API统计概览数据
+      parameters:
+        - name: startTime
+          in: query
+          schema:
+            type: string
+            example: "2025-12-11 00:00:00"
+        - name: endTime
+          in: query
+          schema:
+            type: string
+            example: "2025-12-11 23:59:59"
+        - name: statType
+          in: query
+          schema:
+            type: string
+            enum: [hour, day, week, month]
+            default: day
+      responses:
+        '200':
+          description: 成功获取API统计概览
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          overview:
+                            type: object
+                            properties:
+                              byMethod:
+                                type: array
+                              byHost:
+                                type: array
+                              byStatusCode:
+                                type: array
+                              byPath:
+                                type: array
+                          summary:
+                            type: object
+                            properties:
+                              totalRequests:
+                                type: integer
+                                example: 5000
+                              totalHosts:
+                                type: integer
+                                example: 5
+                              totalPaths:
+                                type: integer
+                                example: 25
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+
+  /api/logs/api-statistics/timeseries:
+    get:
+      tags:
+        - 统计分析
+      summary: 获取API时间序列数据
+      description: 获取按时间排序的API统计数据，用于绘制趋势图
+      parameters:
+        - name: startDate
+          in: query
+          description: 开始日期 (YYYY-MM-DD)
+          schema:
+            type: string
+            example: "2025-12-11"
+        - name: endDate
+          in: query
+          description: 结束日期 (YYYY-MM-DD)
+          schema:
+            type: string
+            example: "2025-12-11"
+        - name: statType
+          in: query
+          schema:
+            type: string
+            enum: [hour, day, week, month]
+            default: day
+        - name: method
+          in: query
+          schema:
+            type: string
+        - name: host
+          in: query
+          schema:
+            type: string
+        - name: appid
+          in: query
+          schema:
+            type: string
+        - name: enterprise_id
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: 成功获取API时间序列数据
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          timeSeries:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                date:
+                                  type: string
+                                  example: "2025-12-11"
+                                totalRequests:
+                                  type: integer
+                                  example: 1250
+                                avgResponseTime:
+                                  type: number
+                                  example: 125.5
+                                errorRate:
+                                  type: number
+                                  example: 1.2
+                                totalErrors:
+                                  type: integer
+                                  example: 15
+                          statType:
+                            type: string
+                            example: "day"
+                          dateRange:
+                            type: object
+                            properties:
+                              start:
+                                type: string
+                                example: "2025-12-11"
+                              end:
+                                type: string
+                                example: "2025-12-11"
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+
+  /api/logs/api-statistics/update:
+    post:
+      tags:
+        - 统计分析
+      summary: 手动更新API统计数据
+      description: 手动触发指定类型的API统计数据更新
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStatisticsRequest'
+            examples:
+              update_api_hour:
+                summary: 更新API小时统计
+                value:
+                  statType: "hour"
+                  targetTime: "2025-12-11T14:00:00.000Z"
+              update_api_day:
+                summary: 更新API日统计
+                value:
+                  statType: "day"
+                  targetTime: "2025-12-11T00:00:00.000Z"
+      responses:
+        '200':
+          description: API统计数据更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          statType:
+                            type: string
+                            example: "hour"
+                          targetTime:
+                            type: string
+                            example: "2025-12-11T14:00:00.000Z"
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25"
+
+  /api/logs/api-statistics/update-all:
+    post:
+      tags:
+        - 统计分析
+      summary: 批量更新所有API统计数据
+      description: 批量更新所有类型的API统计数据 (hour, day, week, month)
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                targetTime:
+                  type: string
+                  description: 目标时间 (ISO 8601格式)
+                  example: "2025-12-11T14:00:00.000Z"
+            examples:
+              update_all_api:
+                summary: 更新所有API统计
+                value:
+                  targetTime: "2025-12-11T14:00:00.000Z"
+      responses:
+        '200':
+          description: 所有API统计数据更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          updatedTypes:
+                            type: array
+                            items:
+                              type: string
+                            example: ["hour", "day", "week", "month"]
+                          targetTime:
+                            type: string
+                            example: "2025-12-11T14:00:00.000Z"
+                          timestamp:
+                            type: string
+                            example: "2025-12-11 14:30:25" 
