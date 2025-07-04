@@ -11,7 +11,7 @@ export enum StatType {
 // 定义统计表属性
 export interface LogStatisticsAttributes {
   qc_log_statistics_id: number;
-  stat_time: Date;
+  stat_time: string;
   stat_type: StatType;
   log_type: string;
   service: string;
@@ -36,7 +36,7 @@ export class LogStatistics
   implements LogStatisticsAttributes
 {
   public qc_log_statistics_id!: number;
-  public stat_time!: Date;
+  public stat_time!: string;
   public stat_type!: StatType;
   public log_type!: string;
   public service!: string;
@@ -60,9 +60,10 @@ export class LogStatistics
           comment: "日志统计记录主键",
         },
         stat_time: {
-          type: DataTypes.DATE,
+          type: DataTypes.STRING(20),
           allowNull: false,
-          comment: "统计时间点",
+          comment:
+            "统计时间点：小时=2025070415, 天=20250704, 月=202507, 周=2025W30",
         },
         stat_type: {
           type: DataTypes.ENUM(...Object.values(StatType)),
@@ -157,7 +158,15 @@ export class LogStatistics
           },
           {
             unique: true,
-            fields: ["stat_time", "stat_type", "enterprise_id", "appid"],
+            fields: [
+              "stat_time",
+              "stat_type",
+              "log_type",
+              "service",
+              "level",
+              "enterprise_id",
+              "appid",
+            ],
             name: "unique_stat_base",
           },
           {

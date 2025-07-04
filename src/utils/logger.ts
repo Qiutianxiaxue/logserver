@@ -33,7 +33,7 @@ export class Logger {
   private constructor(name: string, config?: Partial<LoggerConfig>) {
     this.config = {
       level: LogLevel.INFO,
-      enableConsole: process.env.NODE_ENV === "development",
+      enableConsole: false,
       enableFile: true,
       enableDatabase: true,
       logDir: path.join(process.cwd(), "logs"),
@@ -158,21 +158,27 @@ export class Logger {
         timestamp: DateTime.toClickHouseFormat(),
       };
 
-      // 检查数据库健康状态
+      // 使用与logController相同的健康检查和缓存逻辑
       const databaseHealth = DatabaseHealth.getInstance();
-      const healthStatus = databaseHealth.getHealthStatus();
+      const logCache = LogCache.getInstance();
 
-      if (healthStatus.isHealthy) {
-        // 数据库健康，直接写入
+      // 检查数据库健康状态并决定写入策略
+      if (!databaseHealth.getHealthStatus().isHealthy) {
+        // 数据库不健康，直接缓存
+        await logCache.addToCache(logData);
+        return;
+      }
+
+      // 数据库健康，尝试直接写入
+      try {
         await insertLog(logData);
-      } else {
-        // 数据库不健康，缓存日志
-        const logCache = LogCache.getInstance();
+      } catch {
+        // 数据库插入失败，尝试缓存
         await logCache.addToCache(logData);
       }
     } catch (error) {
-      // 数据库写入失败，只记录到文件，避免循环调用
-      const errorMessage = `Database log failed: ${
+      // 所有操作失败，记录到文件作为最后备用，避免循环调用
+      const errorMessage = `Logger database write failed: ${
         error instanceof Error ? error.message : String(error)
       }`;
       await this.writeToFile(this.formatMessage("ERROR", errorMessage));

@@ -2,6 +2,10 @@ import { LogStatistics, StatType } from "../models/LogStatistics";
 import { getClient } from "../config/database";
 import { Op } from "sequelize";
 import dayjs from "dayjs";
+import weekOfYear from "dayjs/plugin/weekOfYear";
+
+// 启用周数插件
+dayjs.extend(weekOfYear);
 
 // 统计查询接口
 export interface StatisticsQueryOptions {
@@ -80,7 +84,7 @@ export class LogStatisticsService {
 
       // 批量更新或插入统计数据
       for (const row of rows) {
-        await LogStatistics.upsert({
+        const whereConditions = {
           stat_time: statTime,
           stat_type: statType,
           log_type: row.log_type || "",
@@ -88,8 +92,30 @@ export class LogStatisticsService {
           level: row.level || "",
           appid: row.appid || "",
           enterprise_id: row.enterprise_id || "",
-          count: row.count,
+        };
+        console.log("-----------------------------", whereConditions);
+
+        // 先查询是否已存在相同记录
+        const existingRecord = await LogStatistics.findOne({
+          where: whereConditions,
+          logging: console.log,
         });
+
+        if (existingRecord) {
+          // 如果存在，则更新数量
+          await existingRecord.update({
+            count: row.count,
+            update_time: new Date(),
+          });
+          console.log(`  更新: ${row.level} 级别统计，数量: ${row.count}`);
+        } else {
+          // 如果不存在，则创建新记录
+          await LogStatistics.create({
+            ...whereConditions,
+            count: row.count,
+          });
+          console.log(`  创建: ${row.level} 级别统计，数量: ${row.count}`);
+        }
       }
 
       console.log(
@@ -112,25 +138,28 @@ export class LogStatisticsService {
         return {
           startTime: target.startOf("hour").format("YYYY-MM-DD HH:mm:ss"),
           endTime: target.endOf("hour").format("YYYY-MM-DD HH:mm:ss"),
-          statTime: target.startOf("hour").toDate(),
+          statTime: target.format("YYYYMMDDHH"), // 小时格式：2025070415
         };
       case StatType.DAY:
         return {
           startTime: target.startOf("day").format("YYYY-MM-DD HH:mm:ss"),
           endTime: target.endOf("day").format("YYYY-MM-DD HH:mm:ss"),
-          statTime: target.startOf("day").toDate(),
+          statTime: target.format("YYYYMMDD"), // 天格式：20250704
         };
       case StatType.WEEK:
         return {
           startTime: target.startOf("week").format("YYYY-MM-DD HH:mm:ss"),
           endTime: target.endOf("week").format("YYYY-MM-DD HH:mm:ss"),
-          statTime: target.startOf("week").toDate(),
+          statTime: `${target.format("YYYY")}W${target
+            .week()
+            .toString()
+            .padStart(2, "0")}`, // 周格式：2025W30
         };
       case StatType.MONTH:
         return {
           startTime: target.startOf("month").format("YYYY-MM-DD HH:mm:ss"),
           endTime: target.endOf("month").format("YYYY-MM-DD HH:mm:ss"),
-          statTime: target.startOf("month").toDate(),
+          statTime: target.format("YYYYMM"), // 月格式：202507
         };
       default:
         throw new Error(`不支持的统计类型: ${statType}`);
@@ -160,17 +189,17 @@ export class LogStatisticsService {
     // 构建查询条件
     const whereConditions: any = {};
 
-    if (startTime) {
+    if (startTime && statType) {
       whereConditions.stat_time = {
         ...whereConditions.stat_time,
-        [Op.gte]: new Date(startTime),
+        [Op.gte]: this.convertToStatTimeFormat(startTime, statType),
       };
     }
 
-    if (endTime) {
+    if (endTime && statType) {
       whereConditions.stat_time = {
         ...whereConditions.stat_time,
-        [Op.lte]: new Date(endTime),
+        [Op.lte]: this.convertToStatTimeFormat(endTime, statType),
       };
     }
 
@@ -217,7 +246,7 @@ export class LogStatisticsService {
       });
 
       const data: StatisticsResult[] = records.map((record) => ({
-        stat_time: record.stat_time.toISOString(),
+        stat_time: record.stat_time, // 现在直接使用字符串，不需要toISOString()
         stat_type: record.stat_type,
         log_type: record.log_type,
         service: record.service,
@@ -271,17 +300,17 @@ export class LogStatisticsService {
     // 构建查询条件
     const whereConditions: any = {};
 
-    if (startTime) {
+    if (startTime && statType) {
       whereConditions.stat_time = {
         ...whereConditions.stat_time,
-        [Op.gte]: new Date(startTime),
+        [Op.gte]: this.convertToStatTimeFormat(startTime, statType),
       };
     }
 
-    if (endTime) {
+    if (endTime && statType) {
       whereConditions.stat_time = {
         ...whereConditions.stat_time,
-        [Op.lte]: new Date(endTime),
+        [Op.lte]: this.convertToStatTimeFormat(endTime, statType),
       };
     }
 
@@ -356,6 +385,29 @@ export class LogStatisticsService {
         console.error(`更新${statType}统计失败:`, error);
         // 继续处理其他类型的统计
       }
+    }
+  }
+
+  /**
+   * 将输入的时间字符串转换为对应统计类型的格式字符串
+   */
+  private convertToStatTimeFormat(time: string, statType: StatType): string {
+    const target = dayjs(time);
+
+    switch (statType) {
+      case StatType.HOUR:
+        return target.format("YYYYMMDDHH"); // 小时格式：2025070415
+      case StatType.DAY:
+        return target.format("YYYYMMDD"); // 天格式：20250704
+      case StatType.WEEK:
+        return `${target.format("YYYY")}W${target
+          .week()
+          .toString()
+          .padStart(2, "0")}`; // 周格式：2025W30
+      case StatType.MONTH:
+        return target.format("YYYYMM"); // 月格式：202507
+      default:
+        throw new Error(`不支持的统计类型: ${statType}`);
     }
   }
 }

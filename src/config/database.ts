@@ -19,7 +19,7 @@ const clickhouseConfig: ClickHouseConfig = {
         process.env.CLICKHOUSE_PORT || "8123"
       }`,
   username: process.env.CLICKHOUSE_USERNAME || "default",
-  password: process.env.CLICKHOUSE_PASSWORD || "",
+  password: process.env.CLICKHOUSE_PASSWORD || "", // 空密码用于默认安装
   database: process.env.CLICKHOUSE_DATABASE || "logs",
   // 连接选项
   clickhouse_settings: {

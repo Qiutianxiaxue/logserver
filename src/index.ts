@@ -1,5 +1,6 @@
 // 加载环境变量配置
-import "dotenv/config";
+import dotenv from "dotenv";
+dotenv.config();
 
 import express, { Request, Response, NextFunction, Application } from "express";
 import cors from "cors";
@@ -11,17 +12,17 @@ import { ApiResponse, HttpError } from "./types";
 import routes from "./routes";
 import { startSimpleLogService } from "./services/simpleLogService";
 import { statisticsScheduler } from "./utils/scheduler";
+import { DatabaseHealth } from "./utils/databaseHealth";
 
 const app: Application = express();
 
 // 环境变量配置
 const PORT: number = parseInt(process.env.PORT || "13000");
-const NODE_ENV: string = process.env.NODE_ENV || "development";
-const API_PREFIX: string = process.env.API_PREFIX || "/api";
 const LOG_LEVEL: string = process.env.LOG_LEVEL || "combined";
 const LOG_WEBSOCKET_URL: string =
   process.env.LOG_WEBSOCKET_URL || "ws://localhost:13001";
 
+console.log(process.env.NODE_ENV);
 // 中间件配置
 app.use(
   helmet({
@@ -92,9 +93,18 @@ app.use((err: HttpError, req: Request, res: Response, _next: NextFunction) => {
 
     if (dbClient) {
       console.log("✅ ClickHouse数据库初始化成功");
+
+      // 启动数据库健康检查
+      console.log("🔍 正在启动数据库健康检查...");
+      const dbHealth = DatabaseHealth.getInstance();
+      await dbHealth.startHealthCheck();
+
+      const healthStatus = dbHealth.getHealthStatus();
+      console.log(
+        `📊 数据库健康状态: ${healthStatus.isHealthy ? "健康" : "不健康"}`
+      );
     } else {
       console.warn("⚠️ ClickHouse数据库初始化失败，服务将在离线模式下运行");
-      console.warn("📦 日志将被缓存到本地，等待数据库恢复后自动同步");
     }
 
     // 2. 初始化MySQL连接（用于统计数据）
@@ -131,54 +141,10 @@ app.use((err: HttpError, req: Request, res: Response, _next: NextFunction) => {
     console.log("\n" + "=".repeat(60));
     console.log("🎉 日志服务器启动成功！");
     console.log("=".repeat(60));
-    console.log(`📡 HTTP服务地址: http://localhost:${PORT}`);
-    console.log(`📚 API文档: GET http://localhost:${PORT}/ (自动重定向到文档)`);
-    console.log(
-      `📖 Swagger文档: GET http://localhost:${PORT}/docs/swagger-ui.html`
-    );
-    console.log(`📊 首页信息: POST http://localhost:${PORT}/`);
-    console.log(`🔍 健康检查: POST http://localhost:${PORT}/health`);
-    console.log(
-      `📝 查询日志: POST http://localhost:${PORT}${API_PREFIX}/logs/query`
-    );
-    console.log(
-      `✍️ 创建日志: POST http://localhost:${PORT}${API_PREFIX}/logs/create`
-    );
-    console.log(
-      `📊 批量日志: POST http://localhost:${PORT}${API_PREFIX}/logs/batch`
-    );
-    console.log(
-      `📈 日志统计: POST http://localhost:${PORT}${API_PREFIX}/logs/stats`
-    );
-    console.log(
-      `📊 查询统计: GET http://localhost:${PORT}${API_PREFIX}/logs/statistics`
-    );
-    console.log(
-      `📊 统计概览: GET http://localhost:${PORT}${API_PREFIX}/logs/statistics/overview`
-    );
-    console.log(
-      `📊 时间序列: GET http://localhost:${PORT}${API_PREFIX}/logs/statistics/timeseries`
-    );
-    console.log(
-      `🔄 更新统计: POST http://localhost:${PORT}${API_PREFIX}/logs/statistics/update`
-    );
-    console.log(
-      `💾 缓存状态: POST http://localhost:${PORT}${API_PREFIX}/logs/cache/status`
-    );
-    console.log(
-      `🔧 系统报告: POST http://localhost:${PORT}${API_PREFIX}/logs/system/health`
-    );
-    console.log(`📡 WebSocket状态: GET http://localhost:${PORT}/ws/status`);
-    console.log(`📤 发送WebSocket消息: POST http://localhost:${PORT}/ws/send`);
-    console.log(`🌍 运行环境: ${NODE_ENV}`);
     console.log(
       `🔄 运行模式: ${dbClient ? "在线模式" : "离线模式（缓存模式）"}`
     );
     console.log(`📊 统计功能: ${mysqlClient ? "已启用" : "已禁用"}`);
-    console.log(`📋 所有接口统一使用 POST 方法`);
-    if (NODE_ENV === "development") {
-      console.log(`📋 环境变量已加载: ${process.env.NODE_ENV ? "✅" : "❌"}`);
-    }
     console.log("=".repeat(60));
 
     // 5. 优雅退出处理
@@ -191,6 +157,11 @@ app.use((err: HttpError, req: Request, res: Response, _next: NextFunction) => {
         try {
           await logService.shutdown();
           statisticsScheduler.stop();
+
+          // 停止数据库健康检查
+          const dbHealth = DatabaseHealth.getInstance();
+          dbHealth.stopHealthCheck();
+
           await closeMySQL();
           console.log("✅ 所有服务已安全关闭");
           process.exit(0);
