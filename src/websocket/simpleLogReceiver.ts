@@ -97,7 +97,6 @@ export class SimpleLogReceiver {
         },
       };
       this.ws.send(JSON.stringify(message));
-      wsLogger.infoSync(`📤 发送连接消息: ${this.serviceName}`);
     }
   }
 
@@ -107,8 +106,6 @@ export class SimpleLogReceiver {
   private async handleMessage(message: any): Promise<void> {
     this.stats.totalReceived++;
     this.stats.lastReceivedAt = new Date();
-
-    wsLogger.infoSync(`📥 接收到消息: ${message.type}`);
 
     try {
       switch (message.type) {
@@ -143,18 +140,12 @@ export class SimpleLogReceiver {
   /**
    * 处理连接响应
    */
-  private handleConnectResponse(message: any): void {
-    wsLogger.infoSync("✅ 连接确认:", message.data);
-  }
+  private handleConnectResponse(_message: any): void {}
 
   /**
    * 处理日志存储请求
    */
   private async handleLogStore(message: any): Promise<void> {
-    wsLogger.infoSync(
-      `📦 处理日志存储请求，日志数量: ${message.data.logs?.length || 0}`
-    );
-
     try {
       const logs = message.data.logs || [];
       let storedCount = 0;
@@ -191,7 +182,6 @@ export class SimpleLogReceiver {
       };
 
       this.sendResponse(response);
-      wsLogger.infoSync(`✅ 成功存储 ${storedCount}/${logs.length} 条日志`);
     } catch (error) {
       wsLogger.errorSync("❌ 批量存储日志失败:", {
         error: (error as Error).message,
@@ -208,8 +198,6 @@ export class SimpleLogReceiver {
    * 处理日志查询请求
    */
   private async handleLogQuery(message: any): Promise<void> {
-    wsLogger.infoSync("🔍 处理日志查询请求:", message.data);
-
     try {
       // 这里可以根据查询参数调用相应的查询函数
       // 为了简化，暂时返回固定响应

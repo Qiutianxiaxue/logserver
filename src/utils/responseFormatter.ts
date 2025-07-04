@@ -54,7 +54,7 @@ export class ResponseFormatter {
   static formatResponseTimestamp(timestamp?: string): string {
     return timestamp ? DateTime.format(timestamp) : DateTime.now();
   }
-}
+} 
 
 /**
  * 格式化API响应
