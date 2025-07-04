@@ -13,10 +13,14 @@ import DateTime from "../utils/datetime";
 
 // ClickHouse 配置
 const clickhouseConfig: ClickHouseConfig = {
-  url: process.env.CLICKHOUSE_HOST || "http://localhost:18123",
+  url: process.env.CLICKHOUSE_HOST?.startsWith("http")
+    ? process.env.CLICKHOUSE_HOST
+    : `http://${process.env.CLICKHOUSE_HOST || "localhost"}:${
+        process.env.CLICKHOUSE_PORT || "8123"
+      }`,
   username: process.env.CLICKHOUSE_USERNAME || "default",
-  password: process.env.CLICKHOUSE_PASSWORD || "changeme",
-  database: process.env.CLICKHOUSE_DATABASE || "default",
+  password: process.env.CLICKHOUSE_PASSWORD || "",
+  database: process.env.CLICKHOUSE_DATABASE || "logs",
   // 连接选项
   clickhouse_settings: {
     // 异步插入，但等待插入完成以确保数据已写入
