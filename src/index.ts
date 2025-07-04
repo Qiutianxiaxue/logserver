@@ -13,19 +13,46 @@ import { startSimpleLogService } from "./services/simpleLogService";
 const app: Application = express();
 
 // 环境变量配置
-const PORT: number = parseInt(process.env.PORT || "3000");
+const PORT: number = parseInt(process.env.PORT || "13000");
 const NODE_ENV: string = process.env.NODE_ENV || "development";
 const API_PREFIX: string = process.env.API_PREFIX || "/api";
 const LOG_LEVEL: string = process.env.LOG_LEVEL || "combined";
+const LOG_WEBSOCKET_URL: string =
+  process.env.LOG_WEBSOCKET_URL || "ws://localhost:13001";
 
 // 中间件配置
-app.use(helmet()); // 安全头部
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+              scriptSrc: [
+        "'self'", 
+        "'unsafe-inline'", // 允许内联脚本（Swagger UI需要）
+      ],
+      styleSrc: [
+        "'self'", 
+        "'unsafe-inline'", // 允许内联样式（Swagger UI需要）
+      ],
+        imgSrc: ["'self'", "data:", "https:"], // 允许图片资源
+        fontSrc: ["'self'", "https:", "data:"], // 允许字体资源
+        connectSrc: ["'self'"], // API连接
+        objectSrc: ["'none'"], // 禁用object元素
+        mediaSrc: ["'self'"], // 媒体资源
+        frameSrc: ["'none'"], // 禁用frame
+      },
+    },
+  })
+); // 安全头部（为Swagger UI配置CSP）
 app.use(cors()); // 跨域支持
 app.use(morgan(LOG_LEVEL)); // 日志记录，使用环境变量配置
 app.use(express.json({ limit: process.env.JSON_LIMIT || "10mb" })); // JSON解析
 app.use(
   express.urlencoded({ extended: true, limit: process.env.URL_LIMIT || "10mb" })
 ); // URL编码解析
+
+// 静态文件服务配置
+app.use("/docs", express.static("docs")); // 为docs文件夹提供静态文件服务
 
 // 挂载路由
 app.use("/", routes);
@@ -76,10 +103,7 @@ app.use((err: HttpError, req: Request, res: Response, _next: NextFunction) => {
     // 3. 启动简化日志服务（WebSocket接收器 + 数据库存储）
     console.log("📡 正在启动简化日志服务...");
     const logService = await startSimpleLogService({
-      wsUrl:
-        process.env.WS_URL ||
-        process.env.LOG_WEBSOCKET_URL ||
-        "ws://localhost:13001",
+      wsUrl: LOG_WEBSOCKET_URL,
       serviceId: process.env.SERVICE_ID || "log-service-001",
       serviceName: process.env.SERVICE_NAME || "ClickHouse日志服务",
       autoInitDatabase: false, // 已经在上面初始化过了
@@ -90,6 +114,10 @@ app.use((err: HttpError, req: Request, res: Response, _next: NextFunction) => {
     console.log("🎉 日志服务器启动成功！");
     console.log("=".repeat(60));
     console.log(`📡 HTTP服务地址: http://localhost:${PORT}`);
+    console.log(`📚 API文档: GET http://localhost:${PORT}/ (自动重定向到文档)`);
+    console.log(
+      `📖 Swagger文档: GET http://localhost:${PORT}/docs/swagger-ui.html`
+    );
     console.log(`📊 首页信息: POST http://localhost:${PORT}/`);
     console.log(`🔍 健康检查: POST http://localhost:${PORT}/health`);
     console.log(

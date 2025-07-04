@@ -29,9 +29,9 @@ info:
     url: https://opensource.org/licenses/MIT
 
 servers:
-  - url: http://localhost:3000
+  - url: http://localhost:13000
     description: 开发环境
-  - url: https://your-production-domain.com
+  - url: https://log.gkwxhxcj.com
     description: 生产环境
 
 tags:

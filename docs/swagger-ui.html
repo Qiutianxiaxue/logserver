@@ -1,98 +1,75 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>日志服务器 API 文档</title>
-    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.10.5/swagger-ui.css" />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="/docs/swagger-ui-assets/swagger-ui.css"
+    />
     <style>
-        html {
-            box-sizing: border-box;
-            overflow: -moz-scrollbars-vertical;
-            overflow-y: scroll;
-        }
-        *, *:before, *:after {
-            box-sizing: inherit;
-        }
-        body {
-            margin:0;
-            background: #fafafa;
-        }
+      html {
+        box-sizing: border-box;
+        overflow: -moz-scrollbars-vertical;
+        overflow-y: scroll;
+      }
+      *,
+      *:before,
+      *:after {
+        box-sizing: inherit;
+      }
+      body {
+        margin: 0;
+        background: #fafafa;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div id="swagger-ui"></div>
 
-    <script src="https://unpkg.com/swagger-ui-dist@5.10.5/swagger-ui-bundle.js"></script>
-    <script src="https://unpkg.com/swagger-ui-dist@5.10.5/swagger-ui-standalone-preset.js"></script>
+    <script src="/docs/swagger-ui-assets/swagger-ui-bundle.js"></script>
+    <script src="/docs/swagger-ui-assets/swagger-ui-standalone-preset.js"></script>
     <script>
-        window.onload = function() {
-            // 这里需要将 YAML 转换为 JSON 或直接使用 JSON 格式的 API 文档
-            const spec = {
-                openapi: "3.0.3",
-                info: {
-                    title: "日志服务器 API",
-                    description: "基于 Node.js、Express 和 TypeScript 的日志服务器 API",
-                    version: "1.0.0"
-                },
-                servers: [
-                    {
-                        url: "http://localhost:3000",
-                        description: "开发环境"
-                    }
-                ],
-                paths: {
-                    "/": {
-                        post: {
-                            tags: ["基础"],
-                            summary: "首页信息",
-                            description: "获取服务器基本信息",
-                            responses: {
-                                "200": {
-                                    description: "成功获取首页信息",
-                                    content: {
-                                        "application/json": {
-                                            schema: {
-                                                type: "object",
-                                                properties: {
-                                                    code: { type: "integer", example: 1 },
-                                                    message: { type: "string", example: "欢迎使用日志服务器!" },
-                                                    data: { type: "object" }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            };
-
-            const ui = SwaggerUIBundle({
-                spec: spec,
-                dom_id: '#swagger-ui',
-                deepLinking: true,
-                presets: [
-                    SwaggerUIBundle.presets.apis,
-                    SwaggerUIStandalonePreset
-                ],
-                plugins: [
-                    SwaggerUIBundle.plugins.DownloadUrl
-                ],
-                layout: "StandaloneLayout",
-                tryItOutEnabled: true,
-                supportedSubmitMethods: ['post'],
-                docExpansion: 'list',
-                defaultModelsExpandDepth: 2,
-                defaultModelExpandDepth: 2,
-                showExtensions: true,
-                showCommonExtensions: true,
-                onComplete: function() {
-                    console.log('Swagger UI 已加载完成');
-                }
-            });
-        };
+      window.onload = function () {
+        // 直接加载YAML文件
+        const ui = SwaggerUIBundle({
+          url: "/docs/api-swagger.yaml",
+          dom_id: "#swagger-ui",
+          deepLinking: true,
+          presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+          plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+          layout: "StandaloneLayout",
+          tryItOutEnabled: true,
+          supportedSubmitMethods: ["get", "post", "put", "delete", "patch"],
+          docExpansion: "list",
+          defaultModelsExpandDepth: 2,
+          defaultModelExpandDepth: 2,
+          showExtensions: true,
+          showCommonExtensions: true,
+          onComplete: function () {
+            console.log("Swagger UI 已加载完成");
+          },
+          onFailure: function (error) {
+            console.error("Swagger UI 加载失败:", error);
+            // 显示错误信息
+            document.getElementById("swagger-ui").innerHTML =
+              '<div style="padding: 20px; color: red;">' +
+              "<h2>API 文档加载失败</h2>" +
+              "<p>无法加载 API 文档，请检查：</p>" +
+              "<ul>" +
+              "<li>服务器是否正常运行</li>" +
+              "<li>api-swagger.yaml 文件是否存在</li>" +
+              "<li>浏览器控制台是否有错误信息</li>" +
+              "</ul>" +
+              "<p>错误信息: " +
+              error +
+              "</p>" +
+              "</div>";
+          },
+        });
+      };
     </script>
-</body>
-</html> 
+  </body>
+</html>

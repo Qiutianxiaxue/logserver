@@ -67,8 +67,8 @@ export class SimpleLogReceiver {
       }, 5000);
     });
 
-    this.ws.on("error", (error) => {
-      console.error("❌ WebSocket错误:", error);
+    this.ws.on("error", (_error) => {
+      // console.error("❌ WebSocket错误:", error);
       this.stats.totalErrors++;
     });
   }
