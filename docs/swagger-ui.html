@@ -7,7 +7,7 @@
     <link
       rel="stylesheet"
       type="text/css"
-      href="/docs/swagger-ui-assets/swagger-ui.css"
+      href="./swagger-ui-assets/swagger-ui.css"
     />
     <style>
       html {
@@ -29,17 +29,10 @@
   <body>
     <div id="swagger-ui"></div>
 
-    <script src="/docs/swagger-ui-assets/swagger-ui-bundle.js"></script>
-    <script src="/docs/swagger-ui-assets/swagger-ui-standalone-preset.js"></script>
+    <script src="./swagger-ui-assets/swagger-ui-bundle.js"></script>
+    <script src="./swagger-ui-assets/swagger-ui-standalone-preset.js"></script>
     <script>
       window.onload = function () {
-        // 检查并修复协议问题
-        function getCorrectUrl(path) {
-          const protocol = window.location.protocol;
-          const host = window.location.host;
-          return protocol + "//" + host + path;
-        }
-
         // 检查SwaggerUIBundle是否已加载
         if (typeof SwaggerUIBundle === "undefined") {
           console.error("SwaggerUIBundle 未定义，可能是资源加载失败");
@@ -68,7 +61,7 @@
         try {
           // 直接加载YAML文件
           const ui = SwaggerUIBundle({
-            url: getCorrectUrl("/docs/api-swagger.yaml"),
+            url: "./api-swagger.yaml",
             dom_id: "#swagger-ui",
             deepLinking: true,
             presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
@@ -83,9 +76,7 @@
             showCommonExtensions: true,
             onComplete: function () {
               console.log("✅ Swagger UI 已加载完成");
-              console.log(
-                "📍 文档地址: " + getCorrectUrl("/docs/api-swagger.yaml")
-              );
+              console.log("📍 文档地址: ./api-swagger.yaml");
             },
             onFailure: function (error) {
               console.error("❌ Swagger UI 加载失败:", error);
@@ -103,11 +94,7 @@
                 "<li>网络连接是否正常</li>" +
                 "<li>浏览器控制台是否有更多错误信息</li>" +
                 "</ul>" +
-                "<p><strong>尝试直接访问：</strong> <a href='" +
-                getCorrectUrl("/docs/api-swagger.yaml") +
-                "' target='_blank'>" +
-                getCorrectUrl("/docs/api-swagger.yaml") +
-                "</a></p>" +
+                "<p><strong>尝试直接访问：</strong> <a href='./api-swagger.yaml' target='_blank'>./api-swagger.yaml</a></p>" +
                 "</div>";
             },
           });
