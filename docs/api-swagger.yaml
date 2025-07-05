@@ -72,6 +72,7 @@ components:
       required:
         - message
       properties:
+        # 基础字段
         level:
           type: string
           enum: [debug, info, warn, error]
@@ -86,6 +87,34 @@ components:
           type: string
           description: 日志消息
           example: "用户登录成功"
+
+        # 请求信息
+        request_id:
+          type: string
+          description: 请求ID
+          example: "req_123456789"
+
+        # 错误信息
+        error_message:
+          type: string
+          description: 错误消息
+          example: "数据库连接失败"
+        file_path:
+          type: string
+          description: 文件路径
+          example: "/src/controllers/userController.ts"
+        line_number:
+          type: integer
+          description: 行号
+          example: 123
+
+        # 客户端信息
+        client_ip:
+          type: string
+          description: 客户端IP地址
+          example: "192.168.1.10"
+
+        # 服务信息
         service:
           type: string
           default: unknown
@@ -99,6 +128,8 @@ components:
           type: string
           description: 服务IP地址
           example: "192.168.1.100"
+
+        # 应用和企业信息
         appid:
           type: string
           description: 应用ID
@@ -107,10 +138,28 @@ components:
           type: string
           description: 企业ID
           example: "ent_789012"
+
+        # 用户信息
         user_id:
           type: string
           description: 用户ID
           example: "user_345678"
+
+        # HTTP请求信息
+        http_url:
+          type: string
+          description: HTTP请求URL
+          example: "https://api.example.com/v1/users/login"
+        http_request_body:
+          type: string
+          description: HTTP请求体
+          example: '{"username": "admin", "password": "***"}'
+
+        # 追踪和额外数据
+        trace_data:
+          type: string
+          description: 追踪数据
+          example: "trace_id_123456"
         extra_data:
           type: object
           description: 额外数据
@@ -134,6 +183,8 @@ components:
           default: 0
           minimum: 0
           description: 偏移量
+        
+        # 基础过滤
         level:
           type: string
           enum: [debug, info, warn, error]
@@ -142,6 +193,38 @@ components:
           type: string
           description: 日志类型过滤（自定义字符串）
           example: "user_behavior"
+        message:
+          type: string
+          description: 消息过滤
+          example: "用户登录成功"
+        
+        # 请求信息过滤
+        request_id:
+          type: string
+          description: 请求ID过滤
+          example: "req_123456789"
+        
+        # 错误信息过滤
+        error_message:
+          type: string
+          description: 错误消息过滤
+          example: "数据库连接失败"
+        file_path:
+          type: string
+          description: 文件路径过滤
+          example: "/src/controllers/userController.ts"
+        line_number:
+          type: integer
+          description: 行号过滤
+          example: 123
+        
+        # 客户端信息过滤
+        client_ip:
+          type: string
+          description: 客户端IP地址过滤
+          example: "192.168.1.10"
+        
+        # 服务信息过滤
         service:
           type: string
           description: 服务名过滤
@@ -153,6 +236,8 @@ components:
           type: string
           description: 服务IP地址过滤
           example: "192.168.1.100"
+        
+        # 应用和企业过滤
         appid:
           type: string
           description: 应用ID过滤
@@ -161,10 +246,30 @@ components:
           type: string
           description: 企业ID过滤
           example: "ent_789012"
+        
+        # 用户过滤
         user_id:
           type: string
           description: 用户ID过滤
           example: "user_345678"
+        
+        # HTTP请求信息过滤
+        http_url:
+          type: string
+          description: HTTP请求URL过滤
+          example: "https://api.example.com/v1/users/login"
+        http_request_body:
+          type: string
+          description: HTTP请求体过滤
+          example: '{"username": "admin"}'
+        
+        # 追踪数据过滤
+        trace_data:
+          type: string
+          description: 追踪数据过滤
+          example: "trace_id_123456"
+        
+        # 时间范围过滤
         startTime:
           type: string
           description: 开始时间 (YYYY-MM-DD HH:mm:ss)
@@ -173,9 +278,23 @@ components:
           type: string
           description: 结束时间 (YYYY-MM-DD HH:mm:ss)
           example: "2025-12-11 18:00:00"
+        
+        # 关键词搜索
         keyword:
           type: string
           description: 关键词搜索
+        
+        # 排序选项
+        sort_by:
+          type: string
+          enum: [timestamp, level, service_name, enterprise_id]
+          default: timestamp
+          description: 排序字段
+        sort_order:
+          type: string
+          enum: [ASC, DESC]
+          default: DESC
+          description: 排序方向
 
     BatchLogRequest:
       type: object
@@ -212,6 +331,10 @@ components:
           type: string
           description: 唯一标识符
           example: "550e8400-e29b-41d4-a716-446655440000"
+        request_id:
+          type: string
+          description: 请求ID
+          example: "req_123456789"
         timestamp:
           type: string
           description: 时间戳 (YYYY-MM-DD HH:mm:ss 或 ISO 8601)
@@ -778,12 +901,16 @@ paths:
                   level: "info"
                   log_type: "user_behavior"
                   message: "用户登录成功"
+                  request_id: "req_user_login_123"
+                  client_ip: "192.168.1.10"
                   service: "auth-service"
                   service_name: "auth-service-01"
                   service_ip: "192.168.1.100"
                   appid: "app_123456"
                   enterprise_id: "ent_789012"
                   user_id: "user123"
+                  http_url: "https://api.example.com/v1/auth/login"
+                  trace_data: "trace_id_123456"
                   extra_data:
                     action: "login"
                     duration: 1200
@@ -793,11 +920,16 @@ paths:
                   level: "error"
                   log_type: "db_connection_error"
                   message: "数据库连接失败"
+                  request_id: "req_db_error_456"
+                  error_message: "Connection timeout after 30 seconds"
+                  file_path: "/src/services/databaseService.ts"
+                  line_number: 89
                   service: "database-service"
                   service_name: "db-service-02"
                   service_ip: "192.168.1.101"
                   appid: "app_123456"
                   enterprise_id: "ent_789012"
+                  trace_data: "trace_id_789012"
                   extra_data:
                     error_code: "DB_TIMEOUT"
                     connection_pool: "main"
@@ -807,12 +939,17 @@ paths:
                   level: "info"
                   log_type: "admin_audit"
                   message: "用户权限变更"
+                  request_id: "req_admin_audit_789"
+                  client_ip: "192.168.1.15"
                   service: "admin-service"
                   service_name: "admin-service-01"
                   service_ip: "192.168.1.102"
                   appid: "app_123456"
                   enterprise_id: "ent_789012"
                   user_id: "admin123"
+                  http_url: "https://admin.example.com/v1/users/permissions"
+                  http_request_body: '{"user_id":"user456","new_role":"admin"}'
+                  trace_data: "trace_id_345678"
                   extra_data:
                     action: "permission_change"
                     target_user: "user456"
@@ -1051,6 +1188,10 @@ paths:
                   default: 0
                   minimum: 0
                   description: 偏移量
+                request_id:
+                  type: string
+                  description: 请求ID过滤
+                  example: "req_123456789"
                 startTime:
                   type: string
                   description: 开始时间 (YYYY-MM-DD HH:mm:ss)
@@ -1165,6 +1306,11 @@ paths:
                   error_code: "AUTH_FAILED"
                   startTime: "2025-12-11 00:00:00"
                   endTime: "2025-12-11 23:59:59"
+              filter_by_request_id:
+                summary: 按请求ID过滤
+                value:
+                  request_id: "req_123456789"
+                  limit: 1
       responses:
         "200":
           description: API 请求日志查询成功
@@ -1436,27 +1582,40 @@ paths:
                 - level: "info"
                   log_type: "user_login"
                   message: "用户登录"
+                  request_id: "req_login_001"
+                  client_ip: "192.168.1.10"
                   service: "auth-service"
                   service_name: "auth-service-01"
                   appid: "app_123456"
                   enterprise_id: "ent_789012"
                   user_id: "user123"
+                  http_url: "https://api.example.com/v1/auth/login"
+                  trace_data: "trace_id_001"
                 - level: "info"
                   log_type: "data_access"
                   message: "获取用户信息"
+                  request_id: "req_data_002"
+                  client_ip: "192.168.1.10"
                   service: "user-service"
                   service_name: "user-service-01"
                   appid: "app_123456"
                   enterprise_id: "ent_789012"
                   user_id: "user123"
+                  http_url: "https://api.example.com/v1/users/profile"
+                  trace_data: "trace_id_002"
                 - level: "warn"
                   log_type: "rate_limit"
                   message: "请求频率过高"
+                  request_id: "req_rate_003"
+                  client_ip: "192.168.1.10"
+                  error_message: "Rate limit exceeded: 100 requests per minute"
                   service: "rate-limiter"
                   service_name: "rate-limiter-01"
                   appid: "app_123456"
                   enterprise_id: "ent_789012"
                   user_id: "user123"
+                  http_url: "https://api.example.com/v1/users/data"
+                  trace_data: "trace_id_003"
       responses:
         "200":
           description: 批量日志创建成功

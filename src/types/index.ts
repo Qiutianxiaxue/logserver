@@ -33,15 +33,37 @@ export interface ClickHouseConfig {
 export interface LogData {
   id?: string;
   timestamp?: string;
+  request_id?: string;
   level: "debug" | "info" | "warn" | "error";
   log_type?: string;
   message: string;
+
+  // 错误信息
+  error_message?: string;
+  file_path?: string;
+  line_number?: number;
+
+  // 客户端信息
+  client_ip?: string;
+
+  // 服务信息
   service?: string;
   service_name?: string;
   service_ip?: string;
+
+  // 应用和企业信息
   appid?: string;
   enterprise_id?: string;
+
+  // 用户信息
   user_id?: string;
+
+  // HTTP请求信息
+  http_url?: string;
+  http_request_body?: string;
+
+  // 追踪和额外数据
+  trace_data?: string;
   extra_data?: Record<string, any> | string;
   created_date?: string;
 }
@@ -50,17 +72,52 @@ export interface LogData {
 export interface LogQueryOptions {
   limit?: number;
   offset?: number;
+
+  // 基础过滤
   level?: string;
   log_type?: string;
+  message?: string;
+
+  // 请求信息
+  request_id?: string;
+
+  // 错误信息过滤
+  error_message?: string;
+  file_path?: string;
+  line_number?: number;
+
+  // 客户端信息
+  client_ip?: string;
+
+  // 服务信息过滤
   service?: string;
   service_name?: string;
   service_ip?: string;
+
+  // 应用和企业过滤
   appid?: string;
   enterprise_id?: string;
+
+  // 用户过滤
   user_id?: string;
+
+  // HTTP请求信息过滤
+  http_url?: string;
+  http_request_body?: string;
+
+  // 追踪数据过滤
+  trace_data?: string;
+
+  // 时间范围
   startTime?: string;
   endTime?: string;
+
+  // 关键词搜索
   keyword?: string;
+
+  // 排序选项
+  sort_by?: "timestamp" | "level" | "service_name" | "enterprise_id";
+  sort_order?: "ASC" | "DESC";
 }
 
 // 日志统计类型
@@ -113,6 +170,7 @@ export interface HttpError extends Error {
 export interface ApiRequestLogData {
   // 基础字段
   id?: string;
+  request_id?: string;
   timestamp: string | Date;
   created_date?: string;
 
@@ -173,6 +231,9 @@ export interface ApiRequestLogQueryOptions {
   // 分页
   limit?: number;
   offset?: number;
+
+  // 基础过滤
+  request_id?: string;
 
   // 时间范围
   startTime?: string;

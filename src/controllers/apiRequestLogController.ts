@@ -51,6 +51,7 @@ export const createApiRequestLog = asyncHandler(
     // 构建 API 请求日志数据（只包含表中实际存在的字段）
     const apiRequestLogData: ApiRequestLogData = {
       timestamp: timestamp,
+      request_id: body.request_id ? String(body.request_id) : "",
 
       // 请求基本信息（必填）
       method: String(body.method).toUpperCase(),
@@ -152,6 +153,7 @@ export const getApiRequestLogs = asyncHandler(
     const options: ApiRequestLogQueryOptions = {
       limit: queryParams.limit ? parseInt(queryParams.limit as string) : 100,
       offset: queryParams.offset ? parseInt(queryParams.offset as string) : 0,
+      request_id: (queryParams.request_id as string) || undefined,
       startTime: (queryParams.startTime as string) || undefined,
       endTime: (queryParams.endTime as string) || undefined,
       method: (queryParams.method as string) || undefined,

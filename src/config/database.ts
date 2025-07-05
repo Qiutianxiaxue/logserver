@@ -114,15 +114,31 @@ const createLogTable = async (): Promise<void> => {
     CREATE TABLE IF NOT EXISTS ${clickhouseConfig.database}.application_logs (
       id UUID DEFAULT generateUUIDv4(),
       timestamp DateTime64(3) DEFAULT now64(),
+      request_id String DEFAULT '',
       level String,
       log_type String DEFAULT 'application',
       message String,
+
+      error_message String,
+      file_path String,
+      line_number UInt32,
+
+      client_ip String DEFAULT '',
+
       service String DEFAULT '',
       service_name String DEFAULT '',
       service_ip String DEFAULT '',
+
       appid String DEFAULT '',
+
       enterprise_id String DEFAULT '',
+
       user_id String DEFAULT '',
+
+      http_url String DEFAULT '',
+      http_request_body String DEFAULT '',
+
+      trace_data String DEFAULT '',
       extra_data String DEFAULT '',
       created_date Date DEFAULT today()
     ) ENGINE = MergeTree()
@@ -156,9 +172,10 @@ const createApiRequestLogTable = async (): Promise<void> => {
     CREATE TABLE IF NOT EXISTS ${clickhouseConfig.database}.api_request_logs (
       -- 基础字段
       id UUID DEFAULT generateUUIDv4(),
+      request_id String DEFAULT '',
       timestamp DateTime64(3) DEFAULT now64(),
       created_date Date DEFAULT today(),
-      
+
       -- 请求基本信息
       method String,
       url String,
@@ -299,19 +316,31 @@ export const queryLogs = async (
     offset = 0,
     level = null,
     log_type = null,
+    message = null,
+    request_id = null,
+    error_message = null,
+    file_path = null,
+    line_number = null,
+    client_ip = null,
     service = null,
     service_name = null,
     service_ip = null,
     appid = null,
     enterprise_id = null,
     user_id = null,
+    http_url = null,
+    http_request_body = null,
+    trace_data = null,
     startTime = null,
     endTime = null,
     keyword = null,
+    sort_by = "timestamp",
+    sort_order = "DESC",
   } = options;
 
   const whereConditions: string[] = [];
 
+  // 基础字段过滤
   if (level) {
     whereConditions.push(`level = '${level}'`);
   }
@@ -320,6 +349,34 @@ export const queryLogs = async (
     whereConditions.push(`log_type = '${log_type}'`);
   }
 
+  if (message) {
+    whereConditions.push(`message = '${message}'`);
+  }
+
+  // 请求信息过滤
+  if (request_id) {
+    whereConditions.push(`request_id = '${request_id}'`);
+  }
+
+  // 错误信息过滤
+  if (error_message) {
+    whereConditions.push(`error_message LIKE '%${error_message}%'`);
+  }
+
+  if (file_path) {
+    whereConditions.push(`file_path = '${file_path}'`);
+  }
+
+  if (line_number) {
+    whereConditions.push(`line_number = ${line_number}`);
+  }
+
+  // 客户端信息过滤
+  if (client_ip) {
+    whereConditions.push(`client_ip = '${client_ip}'`);
+  }
+
+  // 服务信息过滤
   if (service) {
     whereConditions.push(`service = '${service}'`);
   }
@@ -332,6 +389,7 @@ export const queryLogs = async (
     whereConditions.push(`service_ip = '${service_ip}'`);
   }
 
+  // 应用和企业过滤
   if (appid) {
     whereConditions.push(`appid = '${appid}'`);
   }
@@ -340,10 +398,26 @@ export const queryLogs = async (
     whereConditions.push(`enterprise_id = '${enterprise_id}'`);
   }
 
+  // 用户过滤
   if (user_id) {
     whereConditions.push(`user_id = '${user_id}'`);
   }
 
+  // HTTP请求信息过滤
+  if (http_url) {
+    whereConditions.push(`http_url LIKE '%${http_url}%'`);
+  }
+
+  if (http_request_body) {
+    whereConditions.push(`http_request_body LIKE '%${http_request_body}%'`);
+  }
+
+  // 追踪数据过滤
+  if (trace_data) {
+    whereConditions.push(`trace_data LIKE '%${trace_data}%'`);
+  }
+
+  // 时间范围过滤
   if (startTime) {
     whereConditions.push(`timestamp >= '${startTime}'`);
   }
@@ -352,8 +426,11 @@ export const queryLogs = async (
     whereConditions.push(`timestamp <= '${endTime}'`);
   }
 
+  // 关键词搜索（跨多个字段）
   if (keyword) {
-    whereConditions.push(`message LIKE '%${keyword}%'`);
+    whereConditions.push(
+      `(message LIKE '%${keyword}%' OR error_message LIKE '%${keyword}%' OR http_url LIKE '%${keyword}%' OR trace_data LIKE '%${keyword}%')`
+    );
   }
 
   const whereClause =
@@ -363,7 +440,7 @@ export const queryLogs = async (
     SELECT *
     FROM ${clickhouseConfig.database}.application_logs
     ${whereClause}
-    ORDER BY timestamp DESC
+    ORDER BY ${sort_by} ${sort_order}
     LIMIT ${limit}
     OFFSET ${offset}
   `;
@@ -635,6 +712,7 @@ export const queryApiRequestLogs = async (
   const {
     limit = 100,
     offset = 0,
+    request_id = null,
     startTime = null,
     endTime = null,
     method = null,
@@ -659,6 +737,11 @@ export const queryApiRequestLogs = async (
 
   const whereConditions: string[] = [];
 
+  // 基础过滤
+  if (request_id) {
+    whereConditions.push(`request_id = '${request_id}'`);
+  }
+
   // 时间过滤
   if (startTime) {
     whereConditions.push(`timestamp >= '${startTime}'`);
@@ -668,7 +751,7 @@ export const queryApiRequestLogs = async (
     whereConditions.push(`timestamp <= '${endTime}'`);
   }
 
-  // 基础过滤
+  // 请求方法过滤
   if (method) {
     whereConditions.push(`method = '${method}'`);
   }

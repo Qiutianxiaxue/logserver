@@ -21,15 +21,33 @@ export const getLogs = asyncHandler(
       offset: queryParams.offset ? parseInt(queryParams.offset as string) : 0,
       level: (queryParams.level as string) || undefined,
       log_type: (queryParams.log_type as string) || undefined,
+      message: (queryParams.message as string) || undefined,
+      request_id: (queryParams.request_id as string) || undefined,
+      error_message: (queryParams.error_message as string) || undefined,
+      file_path: (queryParams.file_path as string) || undefined,
+      line_number: queryParams.line_number
+        ? parseInt(queryParams.line_number as string)
+        : undefined,
+      client_ip: (queryParams.client_ip as string) || undefined,
       service: (queryParams.service as string) || undefined,
       service_name: (queryParams.service_name as string) || undefined,
       service_ip: (queryParams.service_ip as string) || undefined,
       appid: (queryParams.appid as string) || undefined,
       enterprise_id: (queryParams.enterprise_id as string) || undefined,
       user_id: (queryParams.user_id as string) || undefined,
+      http_url: (queryParams.http_url as string) || undefined,
+      http_request_body: (queryParams.http_request_body as string) || undefined,
+      trace_data: (queryParams.trace_data as string) || undefined,
       startTime: (queryParams.startTime as string) || undefined,
       endTime: (queryParams.endTime as string) || undefined,
       keyword: (queryParams.keyword as string) || undefined,
+      sort_by:
+        (queryParams.sort_by as
+          | "timestamp"
+          | "level"
+          | "service_name"
+          | "enterprise_id") || "timestamp",
+      sort_order: (queryParams.sort_order as "ASC" | "DESC") || "DESC",
     };
 
     const logs = await queryLogs(options);
@@ -96,12 +114,36 @@ export const createLog = asyncHandler(
         : "info",
       log_type: String(body.log_type || "application"),
       message: String(body.message || ""),
+
+      // 请求信息
+      request_id: String(body.request_id || ""),
+
+      // 错误信息
+      error_message: String(body.error_message || ""),
+      file_path: String(body.file_path || ""),
+      line_number: body.line_number ? parseInt(body.line_number) : undefined,
+
+      // 客户端信息
+      client_ip: String(body.client_ip || ""),
+
+      // 服务信息
       service: String(body.service || "unknown"),
       service_name: String(body.service_name || ""),
       service_ip: String(body.service_ip || ""),
+
+      // 应用和企业信息
       appid: String(body.appid || ""),
       enterprise_id: String(body.enterprise_id || ""),
+
+      // 用户信息
       user_id: String(body.user_id || ""),
+
+      // HTTP请求信息
+      http_url: String(body.http_url || ""),
+      http_request_body: String(body.http_request_body || ""),
+
+      // 追踪和额外数据
+      trace_data: String(body.trace_data || ""),
       extra_data: body.extra_data || {},
       timestamp: timestamp,
     };
@@ -393,12 +435,38 @@ export const createLogsBatch = asyncHandler(
         level: logItem.level || "info",
         log_type: String(logItem.log_type || "application"),
         message: logItem.message || "",
+
+        // 请求信息
+        request_id: String(logItem.request_id || ""),
+
+        // 错误信息
+        error_message: String(logItem.error_message || ""),
+        file_path: String(logItem.file_path || ""),
+        line_number: logItem.line_number
+          ? parseInt(logItem.line_number)
+          : undefined,
+
+        // 客户端信息
+        client_ip: String(logItem.client_ip || ""),
+
+        // 服务信息
         service: logItem.service || "unknown",
         service_name: logItem.service_name || "",
         service_ip: logItem.service_ip || "",
+
+        // 应用和企业信息
         appid: logItem.appid || "",
         enterprise_id: logItem.enterprise_id || "",
+
+        // 用户信息
         user_id: logItem.user_id || "",
+
+        // HTTP请求信息
+        http_url: String(logItem.http_url || ""),
+        http_request_body: String(logItem.http_request_body || ""),
+
+        // 追踪和额外数据
+        trace_data: String(logItem.trace_data || ""),
         extra_data: logItem.extra_data || {},
         timestamp: timestamp,
       };
